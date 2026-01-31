@@ -176,77 +176,77 @@
 
 <script>
     (function () {
-        var subjectsData = {{ subjects_json| safe
-    }};
-    var container = document.getElementById('subject-splits-container');
-    var hiddenContainer = document.getElementById('hidden-splits-container');
-    var addBtn = document.getElementById('add-subject-split');
-    var form = document.getElementById('confirm-form');
-    var splitIndex = 0;
+        var subjectsData = JSON.parse('{{ subjects_json|escapejs }}');
+        console.log('Loaded subjects:', subjectsData);
+        var container = document.getElementById('subject-splits-container');
+        var hiddenContainer = document.getElementById('hidden-splits-container');
+        var addBtn = document.getElementById('add-subject-split');
+        var form = document.getElementById('confirm-form');
+        var splitIndex = 0;
 
-    function createSplitRow() {
-        var idx = splitIndex++;
-        var row = document.createElement('div');
-        row.className = 'subject-split-row';
-        row.style.cssText = 'display: flex; gap: var(--spacing-md); align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap;';
-        row.dataset.index = idx;
+        function createSplitRow() {
+            var idx = splitIndex++;
+            var row = document.createElement('div');
+            row.className = 'subject-split-row';
+            row.style.cssText = 'display: flex; gap: var(--spacing-md); align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap;';
+            row.dataset.index = idx;
 
-        var subjectOptions = '<option value="">-- {% trans "Select Subject" %} --</option>';
-        for (var i = 0; i < subjectsData.length; i++) {
-            subjectOptions += '<option value="' + subjectsData[i].id + '">' + subjectsData[i].name + '</option>';
-        }
-
-        row.innerHTML =
-            '<div class="form-group" style="margin-bottom: 0; min-width: 180px; flex: 1;">' +
-            '<label class="form-label">{% trans "Subject" %}</label>' +
-            '<select class="form-select split-subject" data-idx="' + idx + '" required>' +
-            subjectOptions +
-            '</select>' +
-            '</div>' +
-            '<div class="form-group" style="margin-bottom: 0; width: 100px;">' +
-            '<label class="form-label">{% trans "From Q#" %}</label>' +
-            '<input type="number" class="form-input split-start" data-idx="' + idx + '" min="1" max="{{ total_questions }}" placeholder="1" required>' +
-            '</div>' +
-            '<div class="form-group" style="margin-bottom: 0; width: 100px;">' +
-            '<label class="form-label">{% trans "To Q#" %}</label>' +
-            '<input type="number" class="form-input split-end" data-idx="' + idx + '" min="1" max="{{ total_questions }}" placeholder="{{ total_questions }}" required>' +
-            '</div>' +
-            '<button type="button" class="btn btn-outline remove-split" style="color: var(--danger); border-color: var(--danger); margin-top: 24px;" data-idx="' + idx + '">' +
-            '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-            '<line x1="18" y1="6" x2="6" y2="18"></line>' +
-            '<line x1="6" y1="6" x2="18" y2="18"></line>' +
-            '</svg>' +
-            '</button>';
-
-        container.appendChild(row);
-
-        row.querySelector('.remove-split').addEventListener('click', function () {
-            row.remove();
-        });
-    }
-
-    addBtn.addEventListener('click', createSplitRow);
-
-    form.addEventListener('submit', function (e) {
-        hiddenContainer.innerHTML = '';
-        var rows = container.querySelectorAll('.subject-split-row');
-
-        for (var i = 0; i < rows.length; i++) {
-            var row = rows[i];
-            var subject = row.querySelector('.split-subject').value;
-            var start = row.querySelector('.split-start').value;
-            var end = row.querySelector('.split-end').value;
-
-            if (subject && start && end) {
-                hiddenContainer.innerHTML +=
-                    '<input type="hidden" name="split_subject_' + i + '" value="' + subject + '">' +
-                    '<input type="hidden" name="split_start_' + i + '" value="' + start + '">' +
-                    '<input type="hidden" name="split_end_' + i + '" value="' + end + '">';
+            var subjectOptions = '<option value="">-- {% trans "Select Subject" %} --</option>';
+            for (var i = 0; i < subjectsData.length; i++) {
+                subjectOptions += '<option value="' + subjectsData[i].id + '">' + subjectsData[i].name + '</option>';
             }
+
+            row.innerHTML =
+                '<div class="form-group" style="margin-bottom: 0; min-width: 180px; flex: 1;">' +
+                '<label class="form-label">{% trans "Subject" %}</label>' +
+                '<select class="form-select split-subject" data-idx="' + idx + '" required>' +
+                subjectOptions +
+                '</select>' +
+                '</div>' +
+                '<div class="form-group" style="margin-bottom: 0; width: 100px;">' +
+                '<label class="form-label">{% trans "From Q#" %}</label>' +
+                '<input type="number" class="form-input split-start" data-idx="' + idx + '" min="1" max="{{ total_questions }}" placeholder="1" required>' +
+                '</div>' +
+                '<div class="form-group" style="margin-bottom: 0; width: 100px;">' +
+                '<label class="form-label">{% trans "To Q#" %}</label>' +
+                '<input type="number" class="form-input split-end" data-idx="' + idx + '" min="1" max="{{ total_questions }}" placeholder="{{ total_questions }}" required>' +
+                '</div>' +
+                '<button type="button" class="btn btn-outline remove-split" style="color: var(--danger); border-color: var(--danger); margin-top: 24px;" data-idx="' + idx + '">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                '<line x1="18" y1="6" x2="6" y2="18"></line>' +
+                '<line x1="6" y1="6" x2="18" y2="18"></line>' +
+                '</svg>' +
+                '</button>';
+
+            container.appendChild(row);
+
+            row.querySelector('.remove-split').addEventListener('click', function () {
+                row.remove();
+            });
         }
 
-        hiddenContainer.innerHTML += '<input type="hidden" name="split_count" value="' + rows.length + '">';
-    });
-}) ();
+        addBtn.addEventListener('click', createSplitRow);
+
+        form.addEventListener('submit', function (e) {
+            hiddenContainer.innerHTML = '';
+            var rows = container.querySelectorAll('.subject-split-row');
+
+            for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+                var subject = row.querySelector('.split-subject').value;
+                var start = row.querySelector('.split-start').value;
+                var end = row.querySelector('.split-end').value;
+
+                if (subject && start && end) {
+                    hiddenContainer.innerHTML +=
+                        '<input type="hidden" name="split_subject_' + i + '" value="' + subject + '">' +
+                        '<input type="hidden" name="split_start_' + i + '" value="' + start + '">' +
+                        '<input type="hidden" name="split_end_' + i + '" value="' + end + '">';
+                }
+            }
+
+            hiddenContainer.innerHTML += '<input type="hidden" name="split_count" value="' + rows.length + '">';
+        });
+    })();
 </script>
 {% endblock %}

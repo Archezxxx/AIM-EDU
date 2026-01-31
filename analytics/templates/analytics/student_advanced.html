@@ -8,10 +8,14 @@
     <div class="topbar-left">
         <h1 class="topbar-title">{% trans "Advanced Analytics" %}: {{ student.full_name }}</h1>
         <div style="margin-left: 20px; display: flex; gap: 4px;">
-            class="btn btn-sm {% if source == 'exams' %}btn-primary{% else %}btn-outline{% endif %}">{% trans "Exams"
-            %}</a>
-            class="btn btn-sm {% if source == 'zipgrade' %}btn-primary{% else %}btn-outline{% endif %}">{% trans
-            "ZipGrade" %}</a>
+            <a href="?source=exams"
+                class="btn btn-sm {% if source == 'exams' %}btn-primary{% else %}btn-outline{% endif %}">
+                {% trans "Exams" %}
+            </a>
+            <a href="?source=zipgrade"
+                class="btn btn-sm {% if source == 'zipgrade' %}btn-primary{% else %}btn-outline{% endif %}">
+                {% trans "ZipGrade" %}
+            </a>
         </div>
     </div>
     <div class="topbar-actions">
@@ -71,8 +75,12 @@
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
     <!-- Radar Chart -->
     <div class="card">
-        <h3>{% trans "Subject Mastery" %} <span class="text-muted" style="font-size: 0.7em;">({% trans "vs Class
-                Average" %})</span></h3>
+        <h3>
+            {% trans "Subject Mastery" %}
+            <span class="text-muted" style="font-size: 0.7em;">
+                ({% trans "vs Class Average" %})
+            </span>
+        </h3>
         <canvas id="radarChart" height="300"></canvas>
     </div>
 
@@ -85,8 +93,12 @@
 
 <!-- Trend Line -->
 <div class="card" style="margin-bottom: var(--spacing-xl);">
-    <h3>{% trans "Performance Trend" %} <span class="text-muted" style="font-size: 0.7em;">({% trans "with Moving
-            Average" %})</span></h3>
+    <h3>
+        {% trans "Performance Trend" %}
+        <span class="text-muted" style="font-size: 0.7em;">
+            ({% trans "with Moving Average" %})
+        </span>
+    </h3>
     <canvas id="trendChart" height="150"></canvas>
 </div>
 {% endblock %}

@@ -122,7 +122,8 @@
                 style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <strong>{{ s.surname }} {{ s.name }}</strong>
-                    <div class="text-muted" style="font-size: 0.85em;">ID: {{ s.student_id }}</div>
+                    <div class="text-muted" style="font-size: 0.85em;">ID: {{ student_id_display|default:s.student_id }}
+                    </div>
                 </div>
                 <span class="badge badge-secondary">{{ s.grade }}{{ s.section }}</span>
             </a>
@@ -382,15 +383,15 @@
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         tension: 0.3,
         fill: true
-            }]
-        },
+    }]
+            },
     options: {
         responsive: true,
             scales: { y: { min: 0, max: 100 } },
         plugins: { legend: { display: false } }
     }
-    });
-}
+        });
+    }
 
     {% if radar_labels %}
     // Radar Chart
@@ -407,8 +408,8 @@
         borderColor: '#4f46e5',
         borderWidth: 2,
         pointBackgroundColor: '#4f46e5'
-            }]
-        },
+    }]
+            },
     options: {
         responsive: true,
             scales: {
@@ -420,8 +421,8 @@
         },
         plugins: { legend: { display: false } }
     }
-    });
-}
+        });
+    }
     {% endif %}
 </script>
 {% endif %}
