@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{{ title }} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{{ title }}</h1>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card" style="max-width: 500px;">
+    <form method="post">
+        {% csrf_token %}
+
+        {% for field in form %}
+        <div class="form-group">
+            <label for="{{ field.id_for_label }}" class="form-label">
+                {{ field.label }}
+                {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+            </label>
+            {{ field }}
+            {% if field.errors %}
+            <span class="form-error">{{ field.errors.0 }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl);">
+            <button type="submit" class="btn btn-primary">{{ submit_text }}</button>
+            <a href="{% url 'schools:subjects' %}" class="btn btn-outline">{% trans "Cancel" %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

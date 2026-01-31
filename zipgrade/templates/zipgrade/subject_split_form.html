@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{{ title }} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{{ title }}</h1>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card" style="max-width: 500px;">
+    <p class="text-secondary" style="margin-bottom: var(--spacing-lg);">
+        {% trans "Exam" %}: <strong>{{ exam.title }}</strong><br>
+        {% trans "Total Questions" %}: <strong>{{ exam.total_questions }}</strong>
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% for field in form %}
+        <div class="form-group">
+            <label for="{{ field.id_for_label }}" class="form-label">
+                {{ field.label }}
+                {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+            </label>
+            {{ field }}
+            {% if field.errors %}
+            <span class="form-error">{{ field.errors.0 }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom: var(--spacing-lg);">
+            {{ form.non_field_errors.0 }}
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl);">
+            <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+            <a href="{% url 'zipgrade:exam_detail' exam.pk %}" class="btn btn-outline">{% trans "Cancel" %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

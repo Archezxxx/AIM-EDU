@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load i18n widget_tweaks %}
+
+{% block title %}{% if is_edit %}{% trans "Edit Question" %}{% else %}{% trans "Add Question" %}{% endif %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="{% url 'exams:exam_questions' exam.pk %}" class="back-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {% trans "Back to Questions" %}
+        </a>
+        <h1 class="topbar-title">{% if is_edit %}{% trans "Edit Question" %}{% else %}{% trans "Add Question" %}{% endif %}</h1>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <div class="alert alert-danger" style="margin-bottom: var(--spacing-lg);">
+            <strong>{% trans "Form errors:" %}</strong>
+            {{ form.errors }}
+        </div>
+        {% endif %}
+
+        {% if formset.non_form_errors %}
+        <div class="alert alert-danger" style="margin-bottom: var(--spacing-lg);">
+            <strong>{% trans "Options errors:" %}</strong>
+            {{ formset.non_form_errors }}
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label class="form-label">{% trans "Question Text" %} *</label>
+            {{ form.question_text }}
+            {% if form.question_text.errors %}
+            <div class="text-danger">{{ form.question_text.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--spacing-lg);">
+            <div class="form-group">
+                <label class="form-label">{% trans "Type" %}</label>
+                {{ form.question_type }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "Points" %}</label>
+                {{ form.points }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "Order" %}</label>
+                {{ form.order }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">{% trans "Image (Optional)" %}</label>
+            {{ form.question_image }}
+        </div>
+
+        <div id="fill-blanks-section" style="display: none;">
+            <h3 style="margin: var(--spacing-xl) 0 var(--spacing-lg);">{% trans "Correct Answers" %}</h3>
+            <div class="form-group">
+                <label class="form-label">{% trans "Correct Answers (separate variants with |)" %}</label>
+                {{ form.correct_answers }}
+                <small class="text-muted">{% trans "Example: Moscow|moscow|MOSCOW - student can type any of these" %}</small>
+                {% if form.correct_answers.errors %}
+                <div class="text-danger">{{ form.correct_answers.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="multiple-choice-section">
+            <h3 style="margin: var(--spacing-xl) 0 var(--spacing-lg);">{% trans "Answer Options" %}</h3>
+
+            {{ formset.management_form }}
+
+            <div id="options-container">
+                {% for option_form in formset %}
+                <div class="option-row" style="display: flex; gap: var(--spacing-md); align-items: center; margin-bottom: var(--spacing-md); padding: var(--spacing-sm); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                    {{ option_form.id }}
+                    <div style="flex: 1;">{{ option_form.text }}</div>
+                    <div style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        {{ option_form.is_correct }}
+                        <label>{% trans "Correct" %}</label>
+                    </div>
+                    <div style="width: 80px;">{{ option_form.order }}</div>
+                    {% if formset.can_delete %}
+                    <div>
+                        {{ option_form.DELETE }}
+                        <label>{% trans "Delete" %}</label>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="margin-top: var(--spacing-xl); display: flex; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary">
+                {% if is_edit %}{% trans "Save Changes" %}{% else %}{% trans "Add Question" %}{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleQuestionType() {
+    var typeSelect = document.getElementById('id_question_type');
+    var fillBlanksSection = document.getElementById('fill-blanks-section');
+    var multipleChoiceSection = document.getElementById('multiple-choice-section');
+    
+    if (typeSelect.value  == = 'fill_blanks') {
+        fillBlanksSection.style.display = 'block';
+        multipleChoiceSection.style.display = 'none';
+    } else {
+        fillBlanksSection.style.display = 'none';
+        multipleChoiceSection.style.display = 'block';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var typeSelect = document.getElementById('id_question_type');
+    if (typeSelect) {
+        typeSelect.addEventListener('change', toggleQuestionType);
+        toggleQuestionType();
+    }
+});
+</script>
+{% endblock %}

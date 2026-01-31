@@ -1,0 +1,88 @@
+﻿{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Subjects" %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{% trans "Subjects" %}</h1>
+    <div class="topbar-actions">
+        <a href="{% url 'schools:subject_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            {% trans "Add Subject" %}
+        </a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card" style="margin-bottom: var(--spacing-xl);">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: var(--spacing-md); align-items: flex-end;">
+        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+            <label class="form-label">{% trans "Search" %}</label>
+            <input type="text" name="search" value="{{ search }}" class="form-input"
+                placeholder="{% trans 'Search subjects...' %}">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0; min-width: 200px;">
+            <label class="form-label">{% trans "School" %}</label>
+            <select name="school" class="form-select">
+                <option value="">{% trans "All Schools" %}</option>
+                {% for s in schools %}
+                <option value="{{ s.pk }}" {% if school_filter_int == s.pk %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-secondary">{% trans "Filter" %}</button>
+        <a href="{% url 'schools:subjects' %}" class="btn btn-outline">{% trans "Clear" %}</a>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Code" %}</th>
+                    <th>{% trans "School" %}</th>
+                    <th style="width: 120px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subject in subjects %}
+                <tr>
+                    <td><strong>{{ subject.name }}</strong></td>
+                    <td>{{ subject.code|default:"" }}</td>
+                    <td>{{ subject.school.name|default:"All Schools" }}</td>
+                    <td>
+                        <div style="display: flex; gap: var(--spacing-xs);">
+                            <a href="{% url 'schools:subject_edit' subject.pk %}" class="btn btn-sm btn-outline">{% trans "Edit" %}</a>
+                            <a href="{% url 'schools:subject_delete' subject.pk %}" class="btn btn-sm btn-danger">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                                </svg>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: var(--spacing-xl);">
+                        {% trans "No subjects found." %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

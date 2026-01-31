@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Delete Exam" %} - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="{% url 'exams:exam_list' %}" class="back-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {% trans "Back to Exams" %}
+        </a>
+        <h1 class="topbar-title">{% trans "Delete Exam" %}</h1>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 40px;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
+        stroke="var(--danger)" stroke-width="2" style="margin-bottom: 20px;">
+        <path d="M3 6h18"></path>
+        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+    </svg>
+
+    <h2 style="margin-bottom: 20px;">{% trans "Are you sure?" %}</h2>
+
+    <p style="margin-bottom: 10px;">
+        {% trans "You are about to delete the exam" %} <strong>"{{ exam.title }}"</strong>.
+    </p>
+
+    <div class="alert alert-warning" style="margin-bottom: 30px; text-align: left;">
+        <strong>{% trans "Warning:" %}</strong>
+        {% trans "This action cannot be undone. All associated questions and student attempts will also be permanently
+        deleted." %}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: flex; gap: 20px; justify-content: center;">
+            <a href="{% url 'exams:exam_list' %}" class="btn btn-outline" style="min-width: 120px;">
+                {% trans "Cancel" %}
+            </a>
+            <button type="submit" class="btn btn-danger" style="min-width: 120px;">
+                {% trans "Confirm Delete" %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

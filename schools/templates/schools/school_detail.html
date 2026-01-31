@@ -1,0 +1,159 @@
+﻿{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{{ school.name }} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{{ school.name }}</h1>
+    <div class="topbar-actions">
+        <a href="{% url 'schools:master_student_add' school.pk %}" class="btn btn-outline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            {% trans "Add Student" %}
+        </a>
+        <a href="{% url 'schools:edit' school.pk %}" class="btn btn-primary">
+            {% trans "Edit School" %}
+        </a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<!-- School Info -->
+<div class="stats-grid" style="margin-bottom: var(--spacing-xl);">
+    <div class="stat-card">
+        <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value">{{ students.paginator.count }}</div>
+            <div class="stat-label">{% trans "Total Students" %}</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10B981;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value">{{ grades|length }}</div>
+            <div class="stat-label">{% trans "Grades" %}</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1); color: #8B5CF6;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value">{{ school.code }}</div>
+            <div class="stat-label">{% trans "School Code" %}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Student List -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">{% trans "Students" %}</h3>
+    </div>
+
+    <!-- Filters -->
+    <form method="get"
+        style="display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+            <input type="text" name="search" value="{{ search }}" class="form-input"
+                placeholder="{% trans 'Search students...' %}">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0; min-width: 120px;">
+            <select name="grade" class="form-select">
+                <option value="">{% trans "All Grades" %}</option>
+                {% for grade in grades %}
+                <option value="{{ grade }}" {% if grade_filter == grade %}selected{% endif %}>{{ grade }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-secondary">{% trans "Filter" %}</button>
+    </form>
+
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "ID" %}</th>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Class" %}</th>
+                    <th style="width: 100px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td><code>{{ student.student_id }}</code></td>
+                    <td><strong>{{ student.surname }} {{ student.name }}</strong></td>
+                    <td>{{ student.grade }}{{ student.section }}</td>
+                    <td>
+                        <div style="display: flex; gap: var(--spacing-xs);">
+                            <a href="{% url 'schools:master_student_edit' student.pk %}" class="btn btn-sm btn-outline">
+                                {% trans "Edit" %}
+                            </a>
+                            <a href="{% url 'schools:master_student_delete' student.pk %}"
+                                class="btn btn-sm btn-danger">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                                </svg>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: var(--spacing-xl);">
+                        {% trans "No students found." %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if students.has_other_pages %}
+    <div style="display: flex; justify-content: center; padding-top: var(--spacing-lg); gap: var(--spacing-sm);">
+        {% if students.has_previous %}
+        <a href="?page={{ students.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if grade_filter %}&grade={{ grade_filter }}{% endif %}"
+            class="btn btn-sm btn-outline">{% trans "Previous" %}</a>
+        {% endif %}
+        <span style="padding: var(--spacing-sm) var(--spacing-md); color: var(--text-muted);">
+            {{ students.start_index }}-{{ students.end_index }} {% trans "of" %} {{ students.paginator.count }}
+        </span>
+        {% if students.has_next %}
+        <a href="?page={{ students.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if grade_filter %}&grade={{ grade_filter }}{% endif %}"
+            class="btn btn-sm btn-outline">{% trans "Next" %}</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

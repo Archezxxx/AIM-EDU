@@ -1,0 +1,252 @@
+﻿{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Preview Import" %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{% trans "Preview Import" %}</h1>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<!-- Summary Cards -->
+<div
+    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; font-weight: 700; color: var(--primary-blue);">{{ total_students }}</div>
+        <div class="text-muted">{% trans "Students" %}</div>
+    </div>
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; font-weight: 700; color: var(--primary-blue);">{{ total_questions }}</div>
+        <div class="text-muted">{% trans "Questions" %}</div>
+    </div>
+    <div class="card" style="text-align: center;">
+        <div
+            style="font-size: 2rem; font-weight: 700; color: {% if unknown_count > 0 %}var(--warning){% else %}var(--success){% endif %};">
+            {{ unknown_count }}</div>
+        <div class="text-muted">{% trans "Unknown Students" %}</div>
+    </div>
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; font-weight: 700; color: var(--success);">
+            {% widthratio unknown_count 1 -1 as unknown_neg %}
+            {{ total_students|add:unknown_neg }}
+        </div>
+        <div class="text-muted">{% trans "Matched Students" %}</div>
+    </div>
+</div>
+
+<!-- Exam Info -->
+<div class="card" style="margin-bottom: var(--spacing-xl);">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-lg);">
+        <div>
+            <span class="text-muted">{% trans "School" %}:</span>
+            <strong>{{ school.name }}</strong>
+        </div>
+        <div>
+            <span class="text-muted">{% trans "Title" %}:</span>
+            <strong>{{ title }}</strong>
+        </div>
+        <div>
+            <span class="text-muted">{% trans "Date" %}:</span>
+            <strong>{{ exam_date }}</strong>
+        </div>
+        <div>
+            <span class="text-muted">{% trans "File" %}:</span>
+            <strong>{{ filename }}</strong>
+        </div>
+    </div>
+</div>
+
+{% if unknown_count > 0 %}
+<div class="alert alert-warning" style="margin-bottom: var(--spacing-xl);">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+    <span>{% blocktrans count count=unknown_count %}{{ count }} student could not be matched to the Master Student List.
+        They will be labeled as "Unknown".{% plural %}{{ count }} students could not be matched to the Master Student
+        List. They will be labeled as "Unknown".{% endblocktrans %}</span>
+</div>
+{% endif %}
+
+<!-- Results Preview -->
+<div class="card">
+    <h3 class="card-title" style="margin-bottom: var(--spacing-lg);">
+        {% trans "Preview" %}
+        {% if has_more %}<span class="text-muted" style="font-size: 0.875rem; font-weight: 400;">({% trans "showing
+            first 50" %})</span>{% endif %}
+    </h3>
+
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Student ID" %}</th>
+                    <th>{% trans "Name (ZipGrade)" %}</th>
+                    <th>{% trans "Matched To" %}</th>
+                    <th>{% trans "Score" %}</th>
+                    <th>{% trans "Percentage" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td>
+                        {% if result.is_unknown %}
+                        <span class="badge badge-warning">{% trans "Unknown" %}</span>
+                        {% else %}
+                        <span class="badge badge-success">{% trans "Matched" %}</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ result.student_id }}</code></td>
+                    <td>{{ result.last_name }} {{ result.first_name }}</td>
+                    <td>
+                        {% if result.matched_student %}
+                        {{ result.matched_student.full_name }}
+                        <span class="text-muted">({{ result.matched_student.class_name }})</span>
+                        {% else %}
+                        <span class="text-muted"></span>
+                        {% endif %}
+                    </td>
+                    <td>{{ result.earned }}/{{ result.max_points }}</td>
+                    <td>
+                        <strong
+                            style="color: {% if result.percentage >= 70 %}var(--success){% elif result.percentage >= 50 %}var(--warning){% else %}var(--danger){% endif %};">
+                            {{ result.percentage }}%
+                        </strong>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Subject Splits (Optional) -->
+<div class="card" style="margin-top: var(--spacing-xl);">
+    <h3 class="card-title" style="margin-bottom: var(--spacing-lg);">
+        {% trans "Subject Splits" %}
+        <span class="text-muted" style="font-size: 0.75rem; font-weight: 400;">({% trans "Optional" %})</span>
+    </h3>
+    {% trans "Specify the question ranges for each subject. Example: Math (1-10), English (11-20)." %}
+    </p>
+
+    <div id="subject-splits-container">
+        <!-- Dynamic rows will be added here -->
+    </div>
+
+    <button type="button" id="add-subject-split" class="btn btn-outline" style="margin-top: var(--spacing-md);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        {% trans "Add Split" %}
+    </button>
+
+    <a href="{% url 'schools:subject_create' %}?next={{ request.get_full_path }}" target="_blank"
+        class="btn btn-outline" style="margin-top: var(--spacing-md); margin-left: var(--spacing-sm);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14" />
+        </svg>
+        {% trans "Create Subject" %}
+    </a>
+</div>
+
+<!-- Actions -->
+<div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl); justify-content: center;">
+    <form method="post" action="{% url 'zipgrade:confirm' %}" id="confirm-form" style="display: inline;">
+        {% csrf_token %}
+        <div id="hidden-splits-container"></div>
+        <button type="submit" class="btn btn-primary btn-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            {% trans "Confirm Import" %}
+        </button>
+    </form>
+    <a href="{% url 'zipgrade:cancel' %}" class="btn btn-outline btn-lg">{% trans "Cancel" %}</a>
+</div>
+
+<script>
+    (function () {
+        var subjectsData = {{ subjects_json| safe
+    }};
+    var container = document.getElementById('subject-splits-container');
+    var hiddenContainer = document.getElementById('hidden-splits-container');
+    var addBtn = document.getElementById('add-subject-split');
+    var form = document.getElementById('confirm-form');
+    var splitIndex = 0;
+
+    function createSplitRow() {
+        var idx = splitIndex++;
+        var row = document.createElement('div');
+        row.className = 'subject-split-row';
+        row.style.cssText = 'display: flex; gap: var(--spacing-md); align-items: center; margin-bottom: var(--spacing-md); flex-wrap: wrap;';
+        row.dataset.index = idx;
+
+        var subjectOptions = '<option value="">-- {% trans "Select Subject" %} --</option>';
+        for (var i = 0; i < subjectsData.length; i++) {
+            subjectOptions += '<option value="' + subjectsData[i].id + '">' + subjectsData[i].name + '</option>';
+        }
+
+        row.innerHTML =
+            '<div class="form-group" style="margin-bottom: 0; min-width: 180px; flex: 1;">' +
+            '<label class="form-label">{% trans "Subject" %}</label>' +
+            '<select class="form-select split-subject" data-idx="' + idx + '" required>' +
+            subjectOptions +
+            '</select>' +
+            '</div>' +
+            '<div class="form-group" style="margin-bottom: 0; width: 100px;">' +
+            '<label class="form-label">{% trans "From Q#" %}</label>' +
+            '<input type="number" class="form-input split-start" data-idx="' + idx + '" min="1" max="{{ total_questions }}" placeholder="1" required>' +
+            '</div>' +
+            '<div class="form-group" style="margin-bottom: 0; width: 100px;">' +
+            '<label class="form-label">{% trans "To Q#" %}</label>' +
+            '<input type="number" class="form-input split-end" data-idx="' + idx + '" min="1" max="{{ total_questions }}" placeholder="{{ total_questions }}" required>' +
+            '</div>' +
+            '<button type="button" class="btn btn-outline remove-split" style="color: var(--danger); border-color: var(--danger); margin-top: 24px;" data-idx="' + idx + '">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+            '<line x1="18" y1="6" x2="6" y2="18"></line>' +
+            '<line x1="6" y1="6" x2="18" y2="18"></line>' +
+            '</svg>' +
+            '</button>';
+
+        container.appendChild(row);
+
+        row.querySelector('.remove-split').addEventListener('click', function () {
+            row.remove();
+        });
+    }
+
+    addBtn.addEventListener('click', createSplitRow);
+
+    form.addEventListener('submit', function (e) {
+        hiddenContainer.innerHTML = '';
+        var rows = container.querySelectorAll('.subject-split-row');
+
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var subject = row.querySelector('.split-subject').value;
+            var start = row.querySelector('.split-start').value;
+            var end = row.querySelector('.split-end').value;
+
+            if (subject && start && end) {
+                hiddenContainer.innerHTML +=
+                    '<input type="hidden" name="split_subject_' + i + '" value="' + subject + '">' +
+                    '<input type="hidden" name="split_start_' + i + '" value="' + start + '">' +
+                    '<input type="hidden" name="split_end_' + i + '" value="' + end + '">';
+            }
+        }
+
+        hiddenContainer.innerHTML += '<input type="hidden" name="split_count" value="' + rows.length + '">';
+    });
+}) ();
+</script>
+{% endblock %}

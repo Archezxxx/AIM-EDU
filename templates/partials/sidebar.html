@@ -1,0 +1,277 @@
+{% load static i18n i18n_extras %}
+<!-- Sidebar Navigation -->
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <img src="{% static 'images/logo.png' %}" alt="AIMS" class="sidebar-logo" onerror="this.style.display='none'">
+        <span class="sidebar-brand">AIMS EXAM</span>
+    </div>
+
+    <nav class="sidebar-nav">
+        <!-- Main Navigation -->
+        <div class="nav-section">
+            <span class="nav-section-title">{% trans "Main" %}</span>
+
+            <a href="{% url 'accounts:dashboard' %}"
+                class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="9"></rect>
+                    <rect x="14" y="3" width="7" height="5"></rect>
+                    <rect x="14" y="12" width="7" height="9"></rect>
+                    <rect x="3" y="16" width="7" height="5"></rect>
+                </svg>
+                <span>{% trans "Dashboard" %}</span>
+            </a>
+        </div>
+
+        <!-- Admin Section (visible to Super Admin) -->
+        {% if user.is_authenticated and user.role == 'super_admin' %}
+        <div class="nav-section">
+            <span class="nav-section-title">{% trans "Administration" %}</span>
+
+            <a href="{% url 'schools:list' %}"
+                class="nav-item {% if 'schools' in request.path and 'subjects' not in request.path and 'analytics' not in request.path and 'students' not in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span>{% trans "Schools" %}</span>
+            </a>
+
+            <a href="{% url 'accounts:users' %}" class="nav-item {% if 'users' in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span>{% trans "Users" %}</span>
+            </a>
+
+            <a href="{% url 'schools:subjects' %}"
+                class="nav-item {% if 'subjects' in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                <span>{% trans "Subjects" %}</span>
+            </a>
+
+            <a href="{% url 'schools:master_students' %}"
+                class="nav-item {% if 'students' in request.path and 'schools' in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>{% trans "Master ID" %}</span>
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Teacher Section -->
+        {% if user.is_authenticated and user.role in 'super_admin,teacher' %}
+        <div class="nav-section">
+            <span class="nav-section-title">{% trans "Exams" %}</span>
+
+            <a href="{% url 'zipgrade:upload' %}"
+                class="nav-item {% if 'zipgrade/upload' in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span>{% trans "Upload ZipGrade" %}</span>
+            </a>
+
+            <a href="{% url 'zipgrade:results' %}"
+                class="nav-item {% if 'zipgrade' in request.path and 'upload' not in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>{% trans "ZipGrade Archives" %}</span>
+            </a>
+
+            <a href="{% url 'exams:exam_list' %}"
+                class="nav-item {% if 'exams' in request.path and 'create' not in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span>{% trans "Online Exams" %}</span>
+            </a>
+
+            <a href="{% url 'exams:exam_create' %}"
+                class="nav-item {% if 'exams/create' in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="16"></line>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
+                <span>{% trans "Create Exam" %}</span>
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Analytics Section -->
+        {% if user.is_authenticated and user.role in 'super_admin,teacher' %}
+        <div class="nav-section">
+            <span class="nav-section-title">{% trans "Analytics" %}</span>
+
+            <a href="{% url 'analytics:schools' %}"
+                class="nav-item {% if 'analytics/schools' in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+                <span>{% trans "School Analytics" %}</span>
+            </a>
+
+            <a href="{% url 'analytics:classes' %}"
+                class="nav-item {% if 'analytics/classes' in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+                <span>{% trans "Class Analytics" %}</span>
+            </a>
+
+            <a href="{% url 'analytics:students' %}"
+                class="nav-item {% if 'analytics/students' in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>{% trans "Student Analytics" %}</span>
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Student Section -->
+        {% if user.is_authenticated and user.role == 'student' %}
+        <div class="nav-section">
+            <span class="nav-section-title">{% trans "My Exams" %}</span>
+
+            <a href="{% url 'exams:student_exams' %}"
+                class="nav-item {% if 'exams' in request.path and 'my-exams' in request.path %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>{% trans "My Exams" %}</span>
+            </a>
+        </div>
+        {% endif %}
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer" style="padding: var(--spacing-md); border-top: 1px solid var(--border-color);">
+        <!-- Theme Toggle -->
+        <div
+            style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md);">
+            <span style="font-size: 0.875rem; color: var(--text-secondary);">{% trans "Theme" %}</span>
+            <button class="theme-toggle" aria-label="Toggle theme">
+                <svg class="theme-toggle-icon sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="theme-toggle-icon moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Language Selector -->
+        <div class="lang-selector">
+            <button class="lang-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path
+                        d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                    </path>
+                </svg>
+                <span>
+                    {% if LANGUAGE_CODE == 'en' %}English
+                    {% elif LANGUAGE_CODE == 'ru' %}Русский
+                    {% elif LANGUAGE_CODE == 'ky' %}Кыргызча
+                    {% else %}Language{% endif %}
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+            <div class="lang-dropdown">
+                <a href="{% switch_lang 'en' %}"
+                    class="lang-option {% if LANGUAGE_CODE == 'en' %}active{% endif %}">English</a>
+                <a href="{% switch_lang 'ru' %}"
+                    class="lang-option {% if LANGUAGE_CODE == 'ru' %}active{% endif %}">Русский</a>
+                <a href="{% switch_lang 'ky' %}"
+                    class="lang-option {% if LANGUAGE_CODE == 'ky' %}active{% endif %}">Кыргызча</a>
+            </div>
+        </div>
+
+        <!-- User Profile -->
+        {% if user.is_authenticated %}
+        <div
+            style="margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-color);">
+            <a href="{% url 'accounts:profile' %}"
+                style="display: flex; align-items: center; gap: var(--spacing-sm); color: var(--text-secondary); font-size: 0.875rem;">
+                <div
+                    style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600;">
+                    {{ user.first_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
+                </div>
+                <div style="flex: 1; overflow: hidden;">
+                    <div
+                        style="font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {{ user.get_full_name|default:user.email }}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        {% if user.role == 'super_admin' %}{% trans "Super Admin" %}
+                        {% elif user.role == 'teacher' %}{% trans "Teacher" %}
+                        {% else %}{% trans "Student" %}{% endif %}
+                    </div>
+                </div>
+            </a>
+            <a href="{% url 'accounts:logout' %}" class="btn btn-outline btn-sm btn-block"
+                style="margin-top: var(--spacing-sm);">
+                {% trans "Logout" %}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</aside>

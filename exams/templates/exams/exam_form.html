@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% if is_edit %}{% trans "Edit Exam" %}{% else %}{% trans "Create Exam" %}{% endif %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{% if is_edit %}{% trans "Edit Exam" %}{% else %}{% trans "Create Exam" %}{% endif %}</h1>
+    <div class="topbar-actions">
+        <a href="{% url 'exams:exam_list' %}" class="btn btn-outline">{% trans "Cancel" %}</a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg);">
+            <div class="form-group">
+                <label class="form-label">{% trans "Title" %} *</label>
+                <input type="text" name="title" class="form-input" value="{{ form.title.value|default:'' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "Subject" %} *</label>
+                <select name="subject" class="form-select" required>
+                    <option value="">{% trans "Select Subject" %}</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.pk }}" {% if form.subject.value|stringformat:"s" == subject.pk|stringformat:"s" %}selected{% endif %}>{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "School" %} *</label>
+                <select name="school" class="form-select" required>
+                    <option value="">{% trans "Select School" %}</option>
+                    {% for school in schools %}
+                    <option value="{{ school.pk }}" {% if form.school.value|stringformat:"s" == school.pk|stringformat:"s" %}selected{% endif %}>{{ school.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "Duration (minutes)" %} *</label>
+                <input type="number" name="duration_minutes" class="form-input" value="{{ form.duration_minutes.value|default:60 }}" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "Start Time" %} *</label>
+                <input type="datetime-local" name="start_time" class="form-input" value="{{ form.start_time.value|date:'Y-m-d\TH:i' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "End Time" %} *</label>
+                <input type="datetime-local" name="end_time" class="form-input" value="{{ form.end_time.value|date:'Y-m-d\TH:i' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "Passing Score (%)" %}</label>
+                <input type="number" name="passing_score" class="form-input" value="{{ form.passing_score.value|default:60 }}" min="0" max="100">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{% trans "Max Tab Switches Before Lock" %}</label>
+                <input type="number" name="max_tab_switches" class="form-input" value="{{ form.max_tab_switches.value|default:3 }}" min="1" max="10">
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top: var(--spacing-lg);">
+            <label class="form-label">{% trans "Description" %}</label>
+            <textarea name="description" class="form-input" rows="3">{{ form.description.value|default:'' }}</textarea>
+        </div>
+
+        <div style="display: flex; gap: var(--spacing-lg); margin-top: var(--spacing-lg);">
+            <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <input type="checkbox" name="shuffle_questions" {% if form.shuffle_questions.value %}checked{% endif %}>
+                {% trans "Shuffle Questions" %}
+            </label>
+            <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <input type="checkbox" name="shuffle_options" {% if form.shuffle_options.value %}checked{% endif %}>
+                {% trans "Shuffle Options" %}
+            </label>
+            <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <input type="checkbox" name="show_results_immediately" {% if form.show_results_immediately.value %}checked{% endif %}>
+                {% trans "Show Results Immediately" %}
+            </label>
+            <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <input type="checkbox" name="is_active" {% if form.is_active.value or not is_edit %}checked{% endif %}>
+                {% trans "Active" %}
+            </label>
+        </div>
+
+        {% if form.errors %}
+        <div class="alert alert-danger" style="margin-top: var(--spacing-lg);">
+            {% for field, errors in form.errors.items %}
+            <p><strong>{{ field }}:</strong> {{ errors|join:", " }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="margin-top: var(--spacing-xl); display: flex; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary">
+                {% if is_edit %}{% trans "Save Changes" %}{% else %}{% trans "Create Exam" %}{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

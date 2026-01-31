@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Manage Questions" %} - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="{% url 'exams:exam_list' %}" class="back-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {% trans "Back to Exams" %}
+        </a>
+        <h1 class="topbar-title">{% trans "Questions" %}: {{ exam.title }}</h1>
+    </div>
+    <div class="topbar-actions">
+        <a href="{% url 'exams:add_question' exam.pk %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            {% trans "Add Question" %}
+        </a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="stats-grid" style="margin-bottom: var(--spacing-lg);">
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-value">{{ exam.total_questions }}</div>
+            <div class="stat-label">{% trans "Questions" %}</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-value">{{ exam.total_points }}</div>
+            <div class="stat-label">{% trans "Total Points" %}</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-value">{{ exam.duration_minutes }}m</div>
+            <div class="stat-label">{% trans "Duration" %}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    {% for question in questions %}
+    <div class="question-item" style="border-bottom: 1px solid var(--border-color); padding: var(--spacing-lg) 0;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--spacing-md);">
+            <div>
+                <span class="badge badge-secondary">Q{{ question.order }}</span>
+                <span class="badge" style="margin-left: var(--spacing-xs);">{{ question.get_question_type_display }}</span>
+                <span class="badge badge-success" style="margin-left: var(--spacing-xs);">{{ question.points }} {% trans "pts" %}</span>
+            </div>
+            <div style="display: flex; gap: var(--spacing-xs);">
+                <a href="{% url 'exams:edit_question' question.pk %}" class="btn btn-sm btn-outline">{% trans "Edit" %}</a>
+                <a href="{% url 'exams:delete_question' question.pk %}" class="btn btn-sm btn-danger">{% trans "Delete" %}</a>
+            </div>
+        </div>
+
+        <div class="question-text" style="font-size: 1.1em; margin-bottom: var(--spacing-md);">
+            {{ question.question_text|linebreaksbr }}
+        </div>
+
+        {% if question.question_image %}
+        <div style="margin-bottom: var(--spacing-md);">
+            <img src="{{ question.question_image.url }}" alt="Question Image" style="max-width: 100%; max-height: 300px; border-radius: var(--radius-md);">
+        </div>
+        {% endif %}
+
+        {% if question.question_type == 'fill_blanks' %}
+        <div class="correct-answers" style="padding-left: var(--spacing-xl); color: var(--success);">
+            <strong>{% trans "Correct Answers" %}:</strong> {{ question.correct_answers }}
+        </div>
+        {% else %}
+        <div class="options-list" style="padding-left: var(--spacing-xl);">
+            {% for option in question.options.all %}
+            <div class="option-item" style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-xs); {% if option.is_correct %}color: var(--success); font-weight: 500;{% endif %}">
+                {% if option.is_correct %}
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                {% else %}
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-muted);">
+                    <circle cx="12" cy="12" r="10"></circle>
+                </svg>
+                {% endif %}
+                {{ option.text }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="text-center text-muted" style="padding: var(--spacing-xl);">
+        {% trans "No questions added yet." %}
+        <div style="margin-top: var(--spacing-md);">
+            <a href="{% url 'exams:add_question' exam.pk %}" class="btn btn-primary">{% trans "Add First Question" %}</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "ZipGrade Analytics" %}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="topbar-title">{% trans "ZipGrade Analytics" %}</h1>
+        {% if schools %}
+        <div style="margin-left: 20px;">
+            <select onchange="window.location.href='?school_id='+this.value" class="form-select"
+                style="min-width: 200px;">
+                {% for s in schools %}
+                <option value="{{ s.pk }}" {% if s.pk == school.pk %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% else %}
+
+<!-- Exam Selection Form -->
+<form method="POST" id="analytics-form">
+    {% csrf_token %}
+    <div class="card" style="margin-bottom: var(--spacing-lg);">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
+            <h3 style="margin: 0;">{% trans "Select Exams for Analysis" %}</h3>
+            <div>
+                <button type="button" class="btn btn-outline btn-sm" onclick="selectAll()">{% trans "Select All"
+                    %}</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="clearAll()">{% trans "Clear" %}</button>
+                <button type="submit" class="btn btn-primary btn-sm" style="margin-left: 8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    {% trans "Analyze" %}
+                </button>
+            </div>
+        </div>
+
+        {% if exams %}
+        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+            <table class="table table-sm">
+                <thead style="position: sticky; top: 0; background: var(--surface);">
+                    <tr>
+                        <th style="width: 40px;"></th>
+                        <th>{% trans "Exam Title" %}</th>
+                        <th>{% trans "Date" %}</th>
+                        <th>{% trans "Students" %}</th>
+                        <th>{% trans "Avg Score" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in exams %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="exam_ids" value="{{ exam.pk }}" {% if exam.pk in
+                                selected_exam_ids %}checked{% endif %} class="exam-checkbox">
+                        </td>
+                        <td>{{ exam.title }}</td>
+                        <td>{{ exam.exam_date|date:"d.m.Y" }}</td>
+                        <td>{{ exam.total_students }}</td>
+                        <td>{{ exam.average_score }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">{% trans "No ZipGrade exams found for this school." %}</p>
+        {% endif %}
+    </div>
+</form>
+
+{% if stats %}
+<!-- Analysis Results -->
+<div style="margin-bottom: var(--spacing-lg);">
+    <h2>{% trans "Analysis Results" %}
+        <span class="badge"
+            style="background: var(--primary); color: white; font-size: 0.6em; padding: 4px 8px; border-radius: 12px;">
+            {{ stats.total_exams }} {% trans "exam(s)" %}
+        </span>
+    </h2>
+</div>
+
+<!-- Overview Cards -->
+<div
+    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+    <div class="card" style="text-align: center;">
+        <div class="text-muted">{% trans "Total Results" %}</div>
+        <div style="font-size: 2.5em; font-weight: bold; color: var(--primary);">
+            {{ stats.total_students }}
+        </div>
+    </div>
+
+    <div class="card" style="text-align: center;">
+        <div class="text-muted">{% trans "Average Score" %}</div>
+        <div
+            style="font-size: 2.5em; font-weight: bold; color: {% if stats.avg_score >= 60 %}var(--success){% else %}var(--danger){% endif %};">
+            {{ stats.avg_score }}%
+        </div>
+    </div>
+
+    <div class="card" style="text-align: center;">
+        <div class="text-muted">{% trans "Pass Rate" %}</div>
+        <div
+            style="font-size: 2.5em; font-weight: bold; color: {% if stats.pass_rate >= 70 %}var(--success){% else %}var(--warning){% endif %};">
+            {{ stats.pass_rate }}%
+        </div>
+    </div>
+
+    <div class="card" style="text-align: center;">
+        <div class="text-muted">{% trans "Best Score" %}</div>
+        <div style="font-size: 2.5em; font-weight: bold; color: var(--success);">
+            {{ stats.max_score }}%
+        </div>
+    </div>
+
+    <div class="card" style="text-align: center;">
+        <div class="text-muted">{% trans "Lowest Score" %}</div>
+        <div style="font-size: 2.5em; font-weight: bold; color: var(--danger);">
+            {{ stats.min_score }}%
+        </div>
+    </div>
+</div>
+
+<!-- Charts and Tables Row -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+    <!-- Class Comparison Chart -->
+    <div class="card">
+        <h3>{% trans "Class Comparison" %}</h3>
+        {% if class_breakdown %}
+        <canvas id="classChart" height="200"></canvas>
+        {% else %}
+        <p class="text-muted text-center">{% trans "No class data available (students may not be linked)" %}</p>
+        {% endif %}
+    </div>
+
+    <!-- Subject Breakdown -->
+    <div class="card">
+        <h3>{% trans "Subject Breakdown" %}</h3>
+        {% if subject_breakdown %}
+        <div class="table-container">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>{% trans "Subject" %}</th>
+                        <th>{% trans "Avg" %}</th>
+                        <th>{% trans "Pass %" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subj in subject_breakdown %}
+                    <tr>
+                        <td>{{ subj.name }}</td>
+                        <td>
+                            <span
+                                class="badge {% if subj.avg_score >= 60 %}badge-success{% else %}badge-danger{% endif %}">
+                                {{ subj.avg_score }}%
+                            </span>
+                        </td>
+                        <td>{{ subj.pass_rate }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">{% trans "No subject splits defined for selected exams" %}</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Class Breakdown Table -->
+{% if class_breakdown %}
+<div class="card" style="margin-bottom: var(--spacing-xl);">
+    <h3>{% trans "Class Statistics" %}</h3>
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "Class" %}</th>
+                    <th>{% trans "Students" %}</th>
+                    <th>{% trans "Avg Score" %}</th>
+                    <th>{% trans "Pass Rate" %}</th>
+                    <th>{% trans "Best" %}</th>
+                    <th>{% trans "Worst" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cls in class_breakdown %}
+                <tr>
+                    <td><strong>{{ cls.name }}</strong></td>
+                    <td>{{ cls.student_count }}</td>
+                    <td>
+                        <span class="badge {% if cls.avg_score >= 60 %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ cls.avg_score }}%
+                        </span>
+                    </td>
+                    <td>{{ cls.pass_rate }}%</td>
+                    <td style="color: var(--success);">{{ cls.max_score }}%</td>
+                    <td style="color: var(--danger);">{{ cls.min_score }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Student Ranking -->
+{% if student_ranking %}
+<div class="card">
+    <h3>{% trans "Top Students" %}</h3>
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>{% trans "Student" %}</th>
+                    <th>{% trans "Class" %}</th>
+                    <th>{% trans "Avg Score" %}</th>
+                    <th>{% trans "Exams" %}</th>
+                    <th>{% trans "Best" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in student_ranking %}
+                <tr>
+                    <td>
+                        {% if forloop.counter <= 3 %} <span style="font-size: 1.2em;">
+                            {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% else %}🥉{% endif
+                            %}
+                            </span>
+                            {% else %}
+                            {{ forloop.counter }}
+                            {% endif %}
+                    </td>
+                    <td><strong>{{ student.name }}</strong></td>
+                    <td>{{ student.grade }}{{ student.section }}</td>
+                    <td>
+                        <span
+                            class="badge {% if student.avg_score >= 60 %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ student.avg_score }}%
+                        </span>
+                    </td>
+                    <td>{{ student.exams_taken }}</td>
+                    <td style="color: var(--success);">{{ student.best_score }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    function selectAll() {
+        document.querySelectorAll('.exam-checkbox').forEach(cb => cb.checked = true);
+    }
+    function clearAll() {
+        document.querySelectorAll('.exam-checkbox').forEach(cb => cb.checked = false);
+    }
+
+    {% if class_breakdown %}
+    const ctx = document.getElementById('classChart');
+    if (ctx) {
+        new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: {{ chart_labels| safe }},
+    datasets: [{
+        label: '{% trans "Avg Score" %}',
+        data: {{ chart_data| safe }},
+        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+        borderColor: '#4f46e5',
+        borderWidth: 1
+                }]
+            },
+    options: {
+        responsive: true,
+            scales: {
+            y: {
+                beginAtZero: true,
+                    max: 100
+            }
+        }
+    }
+        });
+    }
+    {% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{{ exam.title }} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{{ exam.title }}</h1>
+    <div class="topbar-actions">
+        <a href="{% url 'zipgrade:add_split' exam.pk %}" class="btn btn-outline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            {% trans "Add Subject Split" %}
+        </a>
+        <a href="{% url 'zipgrade:exam_delete' exam.pk %}" class="btn btn-danger">{% trans "Delete" %}</a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<!-- Exam Info -->
+<div
+    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary-blue);">{{ exam.total_students }}</div>
+        <div class="text-muted" style="font-size: 0.875rem;">{% trans "Students" %}</div>
+    </div>
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary-blue);">{{ exam.total_questions }}</div>
+        <div class="text-muted" style="font-size: 0.875rem;">{% trans "Questions" %}</div>
+    </div>
+    <div class="card" style="text-align: center;">
+        <div
+            style="font-size: 1.5rem; font-weight: 700; color: {% if exam.unknown_students > 0 %}var(--warning){% else %}var(--success){% endif %};">
+            {{ exam.unknown_students }}</div>
+        <div class="text-muted" style="font-size: 0.875rem;">{% trans "Unknown" %}</div>
+    </div>
+    <div class="card" style="text-align: center;">
+        <div
+            style="font-size: 1.5rem; font-weight: 700; color: {% if exam.average_score >= 70 %}var(--success){% elif exam.average_score >= 50 %}var(--warning){% else %}var(--danger){% endif %};">
+            {{ exam.average_score }}%</div>
+        <div class="text-muted" style="font-size: 0.875rem;">{% trans "Average" %}</div>
+    </div>
+</div>
+
+<div
+    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--spacing-xl); margin-bottom: var(--spacing-xl);">
+    <div class="card">
+        <p><span class="text-muted">{% trans "School" %}:</span> <strong>{{ exam.school.name }}</strong></p>
+        <p><span class="text-muted">{% trans "Date" %}:</span> <strong>{{ exam.exam_date|date:"M d, Y" }}</strong></p>
+        <p><span class="text-muted">{% trans "Uploaded" %}:</span> {{ exam.created_at|date:"M d, Y H:i" }}</p>
+        <p><span class="text-muted">{% trans "By" %}:</span> {{ exam.uploaded_by.get_full_name|default:"—" }}</p>
+    </div>
+
+    {% if subject_splits %}
+    <div class="card">
+        <h4 style="margin-bottom: var(--spacing-md);">{% trans "Subject Splits" %}</h4>
+        {% for split in subject_splits %}
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--border-color);">
+            <div>
+                <strong>{{ split.subject.name }}</strong>
+                <span class="text-muted" style="font-size: 0.875rem;">Q{{ split.start_question }}-Q{{ split.end_question
+                    }}</span>
+            </div>
+            <div style="display: flex; gap: var(--spacing-xs);">
+                <a href="{% url 'zipgrade:edit_split' split.pk %}" class="btn btn-sm btn-outline">{% trans "Edit" %}</a>
+                <a href="{% url 'zipgrade:delete_split' split.pk %}" class="btn btn-sm btn-danger">×</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: var(--spacing-lg);">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: var(--spacing-md); align-items: flex-end;">
+        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+            <label class="form-label">{% trans "Search" %}</label>
+            <input type="text" name="search" value="{{ search }}" class="form-input"
+                placeholder="{% trans 'Search students...' %}">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">{% trans "Status" %}</label>
+            <select name="unknown" class="form-select">
+                <option value="">{% trans "All" %}</option>
+                <option value="0" {% if show_unknown == '0' %}selected{% endif %}>{% trans "Matched Only" %}</option>
+                <option value="1" {% if show_unknown == '1' %}selected{% endif %}>{% trans "Unknown Only" %}</option>
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">{% trans "Sort" %}</label>
+            <select name="sort" class="form-select">
+                <option value="-percentage" {% if sort == '-percentage' %}selected{% endif %}>{% trans "Score (High)" %}
+                </option>
+                <option value="percentage" {% if sort == 'percentage' %}selected{% endif %}>{% trans "Score (Low)" %}
+                </option>
+                <option value="zipgrade_last_name" {% if sort == 'zipgrade_last_name' %}selected{% endif %}>{% trans
+                    "Name" %}</option>
+                <option value="zipgrade_student_id" {% if sort == 'zipgrade_student_id' %}selected{% endif %}>{% trans
+                    "ID" %}</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-secondary">{% trans "Apply" %}</button>
+    </form>
+</div>
+
+<!-- Results -->
+<div class="card">
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "ID" %}</th>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Matched To" %}</th>
+                    <th>{% trans "Score" %}</th>
+                    <th>{% trans "Percentage" %}</th>
+                    <th>{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td>
+                        {% if result.is_unknown %}
+                        <span class="badge badge-warning">{% trans "Unknown" %}</span>
+                        {% else %}
+                        <span class="badge badge-success">{% trans "Matched" %}</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ result.zipgrade_student_id }}</code></td>
+                    <td>{{ result.display_name }}</td>
+                    <td>
+                        {% if result.student %}
+                        {{ result.student.full_name }}
+                        <span class="text-muted">({{ result.student.class_name }})</span>
+                        {% elif result.manual_class_name %}
+                        <span class="text-muted">({{ result.manual_class_name }})</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ result.earned_points }}/{{ result.max_points }}</td>
+                    <td>
+                        <strong
+                            style="color: {% if result.percentage >= 70 %}var(--success){% elif result.percentage >= 50 %}var(--warning){% else %}var(--danger){% endif %}">
+                            {{ result.percentage }}%
+                        </strong>
+                    </td>
+                    <td>
+                        <a href="{% url 'zipgrade:edit_unknown_student' result.pk %}" class="btn btn-sm btn-outline"
+                            title="{% trans 'Edit' %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: var(--spacing-xl);">
+                        {% trans "No results found." %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if results.has_other_pages %}
+    <div style="display: flex; justify-content: center; margin-top: var(--spacing-lg);">
+        <div class="pagination">
+            {% if results.has_previous %}
+            <a href="?page={{ results.previous_page_number }}&search={{ search }}&unknown={{ show_unknown }}&sort={{ sort }}"
+                class="pagination-btn">←</a>
+            {% endif %}
+            <span class="pagination-info">{% trans "Page" %} {{ results.number }} {% trans "of" %} {{
+                results.paginator.num_pages }}</span>
+            {% if results.has_next %}
+            <a href="?page={{ results.next_page_number }}&search={{ search }}&unknown={{ show_unknown }}&sort={{ sort }}"
+                class="pagination-btn">→</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div style="margin-top: var(--spacing-xl);">
+    <a href="{% url 'zipgrade:results' %}" class="btn btn-outline">← {% trans "Back to Results" %}</a>
+</div>
+{% endblock %}

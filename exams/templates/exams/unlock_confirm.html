@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Unlock Attempt" %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="{% url 'exams:exam_results' attempt.exam.pk %}" class="back-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {% trans "Back to Results" %}
+        </a>
+        <h1 class="topbar-title">{% trans "Unlock Attempt" %}</h1>
+    </div>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 40px auto; text-align: center; padding: 40px;">
+    <div style="font-size: 3em; margin-bottom: 20px;">🔓</div>
+
+    <h2 style="margin-bottom: 20px;">{% trans "Unlock Exam for" %} {{ attempt.student.get_full_name }}?</h2>
+
+    <div class="alert alert-warning" style="text-align: left; margin-bottom: 30px;">
+        <p><strong>{% trans "Warning" %}:</strong> {% trans "Unlocking this attempt will:" %}</p>
+        <ul style="margin-top: 10px; margin-left: 20px;">
+            <li>{% trans "Reset the student's status to 'In Progress'" %}</li>
+            <li>{% trans "Clear all their previous answers" %}</li>
+            <li>{% trans "Reset the exam timer" %}</li>
+            <li>{% trans "Reset the tab switch counter to 0" %}</li>
+        </ul>
+        <p style="margin-top: 10px;">{% trans "The student will have to start the exam from the beginning." %}</p>
+    </div>
+
+    <div style="margin-bottom: 30px; text-align: left;">
+        <strong>{% trans "Lock Reason" %}:</strong> {{ attempt.lock_reason }}
+        <br>
+        <strong>{% trans "Tab Switches" %}:</strong> {{ attempt.tab_switch_count }}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: flex; gap: var(--spacing-md); justify-content: center;">
+            <a href="{% url 'exams:exam_results' attempt.exam.pk %}" class="btn btn-outline">{% trans "Cancel" %}</a>
+            <button type="submit" class="btn btn-warning">{% trans "Confirm Unlock" %}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

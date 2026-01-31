@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Online Exams" %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{% trans "Online Exams" %}</h1>
+    <div class="topbar-actions">
+        <a href="{% url 'exams:exam_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            {% trans "Create Exam" %}
+        </a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: var(--spacing-lg);">
+    <form method="get" class="filter-form">
+        <div class="filter-row">
+            <div class="filter-group">
+                <input type="text" name="search" class="form-input" placeholder="{% trans 'Search exams...' %}"
+                    value="{{ search }}">
+            </div>
+            <div class="filter-group">
+                <select name="status" class="form-select">
+                    <option value="">{% trans "All Status" %}</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>{% trans "Active Now" %}</option>
+                    <option value="upcoming" {% if status == 'upcoming' %}selected{% endif %}>{% trans "Upcoming" %}</option>
+                    <option value="ended" {% if status == 'ended' %}selected{% endif %}>{% trans "Ended" %}</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
+        </div>
+    </form>
+</div>
+
+<!-- Exams Table -->
+<div class="card">
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "Title" %}</th>
+                    <th>{% trans "Subject" %}</th>
+                    <th>{% trans "Duration" %}</th>
+                    <th>{% trans "Questions" %}</th>
+                    <th>{% trans "Available" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th style="width: 150px;">{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exam in exams %}
+                <tr>
+                    <td><strong>{{ exam.title }}</strong></td>
+                    <td>{{ exam.subject.name }}</td>
+                    <td>{{ exam.duration_minutes }} {% trans "min" %}</td>
+                    <td>{{ exam.total_questions }}</td>
+                    <td>
+                        <small>{{ exam.start_time|date:"d.m.Y H:i" }} - {{ exam.end_time|date:"d.m.Y H:i" }}</small>
+                    </td>
+                    <td>
+                        {% if exam.is_available %}
+                        <span class="badge badge-success">{% trans "Active" %}</span>
+                        {% elif exam.end_time < exam.start_time %} <span class="badge badge-secondary">{% trans "Ended"
+                            %}</span>
+                            {% else %}
+                            <span class="badge badge-warning">{% trans "Upcoming" %}</span>
+                            {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: var(--spacing-xs);">
+                            <a href="{% url 'exams:exam_questions' pk=exam.pk %}" class="btn btn-sm btn-outline"
+                                title="{% trans 'Questions' %}">Q</a>
+                            <a href="{% url 'exams:exam_results' pk=exam.pk %}" class="btn btn-sm btn-outline"
+                                title="{% trans 'Results' %}">R</a>
+                            <a href="{% url 'exams:exam_edit' pk=exam.pk %}" class="btn btn-sm btn-outline"
+                                title="{% trans 'Edit' %}">E</a>
+                            <a href="{% url 'exams:exam_delete' pk=exam.pk %}" class="btn btn-sm btn-danger"
+                                title="{% trans 'Delete' %}">X</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">{% trans "No exams found." %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

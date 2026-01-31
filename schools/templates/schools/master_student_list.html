@@ -1,0 +1,78 @@
+﻿{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Master ID" %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{% trans "Master ID" %}</h1>
+    <div class="topbar-actions">
+        <a href="{% url 'schools:master_student_upload' %}" class="btn btn-primary">
+            {% trans "Upload List" %}
+        </a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card" style="margin-bottom: var(--spacing-lg);">
+    <form method="get" class="filter-form">
+        <div class="filter-row">
+            <div class="filter-group">
+                <input type="text" name="search" class="form-input" placeholder="{% trans 'Search...' %}" value="{{ search }}">
+            </div>
+            <div class="filter-group">
+                <select name="school" class="form-input">
+                    <option value="">{% trans "All Schools" %}</option>
+                    {% for s in schools %}
+                    <option value="{{ s.pk }}" {% if school_filter == s.pk %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <select name="grade" class="form-input">
+                    <option value="">{% trans "All Grades" %}</option>
+                    {% for g in grades %}
+                    <option value="{{ g }}" {% if grade_filter == g %}selected{% endif %}>{{ g }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "Student ID" %}</th>
+                    <th>{% trans "Full Name" %}</th>
+                    <th>{% trans "Grade" %}</th>
+                    <th>{% trans "School" %}</th>
+                    <th>{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td><code>{{ student.student_id }}</code></td>
+                    <td><strong>{{ student.surname }} {{ student.name }}</strong></td>
+                    <td>{{ student.grade }}{{ student.section }}</td>
+                    <td>{{ student.school.name }}</td>
+                    <td>
+                        <a href="{% url 'schools:master_student_edit' student.pk %}" class="btn btn-sm btn-outline">Edit</a>
+                        <a href="{% url 'schools:master_student_delete' student.pk %}" class="btn btn-sm btn-outline btn-danger">Del</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">{% trans "No students found." %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

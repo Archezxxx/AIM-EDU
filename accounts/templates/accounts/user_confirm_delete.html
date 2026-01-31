@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Delete User" %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{% trans "Delete User" %}</h1>
+</div>
+
+<div class="card" style="max-width: 500px;">
+    <div style="text-align: center; padding: var(--spacing-lg) 0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+            stroke="var(--danger)" stroke-width="2" style="margin-bottom: var(--spacing-md);">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+
+        <h3 style="margin-bottom: var(--spacing-sm);">{% trans "Confirm Deactivation" %}</h3>
+        <p class="text-secondary">
+            {% blocktrans with name=user_obj.get_full_name %}
+            Are you sure you want to deactivate <strong>{{ name }}</strong>?
+            {% endblocktrans %}
+        </p>
+        <p class="text-muted" style="font-size: 0.875rem;">
+            {% trans "This user will no longer be able to login, but their data will be preserved." %}
+        </p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: flex; gap: var(--spacing-md); justify-content: center;">
+            <button type="submit" class="btn btn-danger">
+                {% trans "Yes, Deactivate" %}
+            </button>
+            <a href="{% url 'accounts:users' %}" class="btn btn-outline">
+                {% trans "Cancel" %}
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Edit Student Information" %}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="topbar-title">{% trans "Edit Student Information" %}</h1>
+    </div>
+    <div class="topbar-actions">
+        <a href="{% url 'zipgrade:exam_detail' result.exam.pk %}" class="btn btn-outline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {% trans "Back to Exam" %}
+        </a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card" style="max-width: 600px;">
+    <div class="alert alert-info" style="margin-bottom: var(--spacing-lg);">
+        <strong>{% trans "ZipGrade ID:" %}</strong> {{ result.zipgrade_student_id }}<br>
+        <strong>{% trans "Original Name:" %}</strong> {{ result.zipgrade_last_name }} {{ result.zipgrade_first_name }}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label class="form-label" for="manual_last_name">{% trans "Last Name (Surname)" %}</label>
+            <input type="text" id="manual_last_name" name="manual_last_name" class="form-input"
+                value="{{ result.manual_last_name }}" placeholder="{% trans 'Enter last name' %}">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="manual_first_name">{% trans "First Name" %}</label>
+            <input type="text" id="manual_first_name" name="manual_first_name" class="form-input"
+                value="{{ result.manual_first_name }}" placeholder="{% trans 'Enter first name' %}">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="manual_class_name">{% trans "Class" %}</label>
+            <input type="text" id="manual_class_name" name="manual_class_name" class="form-input"
+                value="{{ result.manual_class_name }}" placeholder="{% trans 'Enter class (e.g. 9B)' %}">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="link_student">{% trans "Link to Existing Student (Optional)" %}</label>
+            <select id="link_student" name="link_student" class="form-select">
+                <option value="">{% trans "-- Select Student --" %}</option>
+                {% for student in available_students %}
+                <option value="{{ student.pk }}" {% if result.student_id == student.pk %}selected{% endif %}>
+                    {{ student.full_name }} ({{ student.student_id }})
+                </option>
+                {% endfor %}
+            </select>
+            <small class="text-muted">{% trans "If selected, this will link the result to the student's record."
+                %}</small>
+        </div>
+
+        <div style="display: flex; gap: var(--spacing-md);">
+            <button type="submit" class="btn btn-primary">{% trans "Save Changes" %}</button>
+            <a href="{% url 'zipgrade:exam_detail' result.exam.pk %}" class="btn btn-outline">{% trans "Cancel" %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

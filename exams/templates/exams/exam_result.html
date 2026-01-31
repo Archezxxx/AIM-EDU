@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load i18n exam_extras %}
+
+{% block title %}{% trans "Exam Result" %} - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="{% url 'exams:student_exams' %}" class="back-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {% trans "Back to Exams" %}
+        </a>
+        <h1 class="topbar-title">{% trans "Result" %}: {{ exam.title }}</h1>
+    </div>
+</div>
+
+{% if exam.show_results_immediately or request.user.is_super_admin or request.user.is_teacher %}
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacing-lg);">
+    <!-- Left Column: Score and Details -->
+    <div class="card" style="text-align: center; padding: 40px;">
+        <h2 style="margin-bottom: 20px;">{% trans "Exam Completed" %}</h2>
+
+        <div
+            style="font-size: 4em; font-weight: bold; color: {% if attempt.is_passed %}var(--success){% else %}var(--danger){% endif %}; margin-bottom: 10px;">
+            {{ attempt.percentage }}%
+        </div>
+
+        <div style="font-size: 1.5em; margin-bottom: 30px;">
+            {{ attempt.score }} / {{ exam.total_points }} {% trans "Points" %}
+        </div>
+
+        <div class="status-badge"
+            style="display: inline-block; padding: 10px 20px; border-radius: 20px; font-weight: bold; background: {% if attempt.is_passed %}rgba(16, 185, 129, 0.1); color: var(--success);{% else %}rgba(239, 68, 68, 0.1); color: var(--danger);{% endif %}">
+            {% if attempt.is_passed %}
+            {% trans "PASSED" %}
+            {% else %}
+            {% trans "FAILED" %}
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 40px; color: var(--text-muted);">
+            <p>{% trans "Started" %}: {{ attempt.started_at|date:"d.m.Y H:i" }}</p>
+            <p>{% trans "Finished" %}: {{ attempt.finished_at|date:"d.m.Y H:i" }}</p>
+        </div>
+    </div>
+
+    <!-- Right Column: Proctoring Info (only if meaningful) or generic info -->
+    <div class="card">
+        <h3>{% trans "Exam Rules Check" %}</h3>
+        <div style="margin-top: 20px;">
+            <p>{% trans "Tab Switches:" %} <strong>{{ attempt.tab_switch_count }}</strong></p>
+            {% if attempt.tab_switch_count > 0 %}
+            <div class="alert alert-warning" style="margin-top: 10px;">
+                {% trans "Warning: Tab switching was detected during the exam." %}
+            </div>
+            {% else %}
+            <div class="alert alert-success" style="margin-top: 10px;">
+                {% trans "Clean Record: No tab switching detected." %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if answers %}
+<div class="card" style="margin-top: var(--spacing-lg);">
+    <h3 style="margin-bottom: var(--spacing-lg);">{% trans "Detailed Review" %}</h3>
+
+    {% for answer in answers %}
+    <div class="review-item" style="border-bottom: 1px solid var(--border-color); padding: 20px 0;">
+        <div style="margin-bottom: 10px; font-weight: bold; font-size: 1.1em;">
+            <span class="badge badge-secondary">Q{{ forloop.counter }}</span>
+            {{ answer.question.question_text }}
+        </div>
+
+        <div style="margin-left: 20px;">
+            {% for option in answer.question.options.all %}
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px; 
+                {% if option.is_correct %}color: var(--success); font-weight: bold;{% endif %}
+                {% if answer.selected_option == option and not option.is_correct %}color: var(--danger); text-decoration: line-through;{% endif %}
+            ">
+                {% if answer.selected_option == option %}
+                {% if option.is_correct %}
+                ✅
+                {% else %}
+                ❌
+                {% endif %}
+                {% else %}
+                <span style="display: inline-block; width: 20px;"></span>
+                {% endif %}
+
+                {{ option.text }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div style="margin-top: 10px; font-size: 0.9em; color: var(--text-muted);">
+            {% if answer.is_correct %}
+            {% trans "Result" %}: +{{ answer.question.points }} {% trans "points" %}
+            {% else %}
+            {% trans "Result" %}: 0 {% trans "points" %}
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="card" style="text-align: center; padding: 40px; max-width: 600px; margin: 0 auto;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
+        stroke="var(--success)" stroke-width="2" style="margin-bottom: 20px;">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+    </svg>
+    <h2 style="margin-bottom: 20px;">{% trans "Exam Submitted" %}</h2>
+    <p style="font-size: 1.2em; margin-bottom: 10px;">{% trans "Your exam has been submitted successfully." %}</p>
+    <p class="text-muted" style="margin-bottom: 30px;">
+        {% trans "Results will be available after the exam period ends or when released by the instructor." %}
+    </p>
+    <a href="{% url 'exams:student_exams' %}" class="btn btn-primary">{% trans "Back to My Exams" %}</a>
+</div>
+{% endif %}
+
+{% endblock %}

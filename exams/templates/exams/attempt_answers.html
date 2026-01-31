@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Student Answers" %} - {{ attempt.student.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="{% url 'exams:exam_results' exam.pk %}" class="back-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {% trans "Back to Results" %}
+        </a>
+        <h1 class="topbar-title">{{ attempt.student.get_full_name }}</h1>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--spacing-lg);">
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-lg);">
+        <div>
+            <div class="text-muted">{% trans "Exam" %}</div>
+            <div class="font-bold">{{ exam.title }}</div>
+        </div>
+        <div>
+            <div class="text-muted">{% trans "Score" %}</div>
+            <div class="font-bold {% if attempt.is_passed %}text-success{% else %}text-danger{% endif %}">{{ attempt.percentage }}% ({{ attempt.score }}/{{ exam.total_points }})</div>
+        </div>
+        <div>
+            <div class="text-muted">{% trans "Status" %}</div>
+            <div>
+                {% if attempt.is_passed %}
+                <span class="badge badge-success">{% trans "PASSED" %}</span>
+                {% else %}
+                <span class="badge badge-danger">{% trans "FAILED" %}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <div class="text-muted">{% trans "Tab Switches" %}</div>
+            <div class="font-bold">{{ attempt.tab_switch_count }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: var(--spacing-lg);">{% trans "Detailed Answers" %}</h3>
+
+    {% for answer in answers %}
+    <div class="answer-item" style="border-bottom: 1px solid var(--border-color); padding: var(--spacing-lg) 0;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--spacing-sm);">
+            <div>
+                <span class="badge badge-secondary">Q{{ answer.question.order }}</span>
+                <span class="badge" style="margin-left: var(--spacing-xs);">{{ answer.question.get_question_type_display }}</span>
+                <span class="badge badge-outline" style="margin-left: var(--spacing-xs);">{{ answer.question.points }} {% trans "pts" %}</span>
+            </div>
+            <div>
+                {% if answer.is_correct %}
+                <span class="badge badge-success">+{{ answer.question.points }} {% trans "pts" %}</span>
+                {% else %}
+                <span class="badge badge-danger">0 {% trans "pts" %}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="question-text" style="font-size: 1.1em; margin-bottom: var(--spacing-md);">{{ answer.question.question_text|linebreaksbr }}</div>
+
+        {% if answer.question.question_type == 'fill_blanks' %}
+        <div style="padding-left: var(--spacing-lg);">
+            <div style="margin-bottom: var(--spacing-sm);">
+                <strong>{% trans "Student Answer" %}:</strong>
+                <span class="{% if answer.is_correct %}text-success{% else %}text-danger{% endif %}">{{ answer.text_answer|default:"-" }}</span>
+                {% if answer.is_correct %}✅{% else %}❌{% endif %}
+            </div>
+            <div class="text-muted">
+                <strong>{% trans "Correct Answers" %}:</strong> {{ answer.question.correct_answers }}
+            </div>
+        </div>
+        {% else %}
+        <div class="options-list" style="padding-left: var(--spacing-lg);">
+            {% for option in answer.question.options.all %}
+            <div class="option-item" style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-sm); {% if option.is_correct %}background: rgba(16, 185, 129, 0.1); color: var(--success);{% endif %} {% if answer.selected_option == option and not option.is_correct %}background: rgba(239, 68, 68, 0.1); color: var(--danger);{% endif %}">
+                {% if answer.selected_option == option %}
+                    {% if option.is_correct %}✅{% else %}❌{% endif %}
+                {% else %}
+                    <span style="width: 20px;"></span>
+                {% endif %}
+                {{ option.text }}
+                {% if option.is_correct %}<span class="text-muted small" style="margin-left: var(--spacing-sm);">({% trans "correct" %})</span>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="text-center text-muted" style="padding: var(--spacing-xl);">{% trans "No answers recorded." %}</div>
+    {% endfor %}
+</div>
+{% endblock %}

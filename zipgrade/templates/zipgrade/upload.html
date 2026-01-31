@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Upload ZipGrade" %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{% trans "Upload ZipGrade Results" %}</h1>
+    <div class="topbar-actions">
+        <a href="{% url 'zipgrade:results' %}" class="btn btn-outline">{% trans "View All Results" %}</a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--spacing-xl);">
+    <div class="card">
+        <h3 class="card-title" style="margin-bottom: var(--spacing-lg);">{% trans "Upload File" %}</h3>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}" class="form-label">
+                    {{ field.label }}
+                    {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                </label>
+                {{ field }}
+                {% if field.errors %}
+                <span class="form-error">{{ field.errors.0 }}</span>
+                {% endif %}
+                {% if field.help_text %}
+                <span class="form-help">{{ field.help_text }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="btn btn-primary btn-block">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                {% trans "Upload & Preview" %}
+            </button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3 class="card-title" style="margin-bottom: var(--spacing-lg);">{% trans "Instructions" %}</h3>
+
+        <ol style="color: var(--text-secondary); line-height: 1.8; padding-left: var(--spacing-lg);">
+            <li>{% trans "Export results from ZipGrade as CSV" %}</li>
+            <li>{% trans "Select the school and enter exam details" %}</li>
+            <li>{% trans "Upload the CSV file" %}</li>
+            <li>{% trans "Preview and confirm the import" %}</li>
+            <li>{% trans "Optionally add subject splits for detailed analytics" %}</li>
+        </ol>
+
+        <div class="alert alert-info" style="margin-top: var(--spacing-lg);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>{% trans "Students will be automatically matched to the Master Student List using Smart ID matching."
+                %}</span>
+        </div>
+
+        <h4 style="margin-top: var(--spacing-lg); margin-bottom: var(--spacing-sm);">{% trans "Supported Columns" %}
+        </h4>
+        <p class="text-muted" style="font-size: 0.875rem;">
+            ExternalId, FirstName, LastName, EarnedPts, PossiblePts, Percent, Q1, Q2, Q3...
+        </p>
+    </div>
+</div>
+{% endblock %}

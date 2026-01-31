@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "My Exams" %} - AIMS EXAM{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1 class="topbar-title">{% trans "My Exams" %}</h1>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card">
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "Exam" %}</th>
+                    <th>{% trans "Subject" %}</th>
+                    <th>{% trans "Availability" %}</th>
+                    <th>{% trans "Duration" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Action" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in exams_data %}
+                <tr>
+                    <td>
+                        <strong>{{ item.exam.title }}</strong>
+                        {% if item.exam.description %}
+                        <div class="text-muted small">{{ item.exam.description|truncatechars:50 }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.exam.subject.name }}</td>
+                    <td>
+                        <div>{% trans "Start" %}: {{ item.exam.start_time|date:"d.m H:i" }}</div>
+                        <div class="text-muted">{% trans "End" %}: {{ item.exam.end_time|date:"d.m H:i" }}</div>
+                    </td>
+                    <td>{{ item.exam.duration_minutes }} {% trans "min" %}</td>
+                    <td>
+                        {% if item.is_completed %}
+                        <span class="badge badge-success">{% trans "Completed" %}</span>
+                        {% if item.attempt.score is not None %}
+                        <div style="margin-top: 4px; font-weight: bold;">
+                            {{ item.attempt.percentage }}%
+                        </div>
+                        {% endif %}
+                        {% elif item.is_locked %}
+                        <span class="badge badge-danger">{% trans "Locked" %}</span>
+                        {% elif item.attempt %}
+                        <span class="badge badge-warning">{% trans "In Progress" %}</span>
+                        {% else %}
+                        <span class="badge badge-secondary">{% trans "Not Started" %}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.is_completed %}
+                        <a href="{% url 'exams:exam_result' item.attempt.pk %}" class="btn btn-sm btn-outline">
+                            {% trans "View Result" %}
+                        </a>
+                        {% elif item.can_start %}
+                        <a href="{% url 'exams:start_exam' item.exam.pk %}" class="btn btn-sm btn-primary">
+                            {% if item.attempt %}{% trans "Continue" %}{% else %}{% trans "Start Exam" %}{% endif %}
+                        </a>
+                        {% elif item.is_locked %}
+                        <button disabled class="btn btn-sm btn-outline btn-danger">{% trans "Contact Admin" %}</button>
+                        {% else %}
+                        <button disabled class="btn btn-sm btn-outline">{% trans "Unavailable" %}</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center" style="padding: var(--spacing-xl);">
+                        {% trans "No exams available at this time." %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

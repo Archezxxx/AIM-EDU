@@ -1,0 +1,91 @@
+{% load static i18n %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AIMS EXAM{% endblock %}</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+
+    <!-- Theme Toggle (load early to prevent flash) -->
+    <script src="{% static 'js/theme-toggle.js' %}"></script>
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    {% block body %}
+    <div class="auth-wrapper">
+        <div class="auth-card slide-up">
+            <div class="auth-header">
+                <img src="{% static 'images/logo.png' %}" alt="AIMS EXAM" class="auth-logo"
+                    onerror="this.style.display='none'">
+                <h1 class="auth-title">{% block auth_title %}AIMS EXAM{% endblock %}</h1>
+                <p class="auth-subtitle">{% block auth_subtitle %}{% endblock %}</p>
+            </div>
+
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}" data-dismiss="5000">
+                {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            {% block auth_content %}{% endblock %}
+
+            <div class="auth-footer" style="text-align: center; margin-top: var(--spacing-xl);">
+                {% block auth_footer %}{% endblock %}
+
+                <!-- Theme Toggle for Auth Pages -->
+                <div
+                    style="margin-top: var(--spacing-lg); display: flex; align-items: center; justify-content: center; gap: var(--spacing-md);">
+                    <button class="theme-toggle" aria-label="Toggle theme"></button>
+
+                    <!-- Language Selector -->
+                    <div class="lang-selector">
+                        <button class="lang-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="2" y1="12" x2="22" y2="12"></line>
+                                <path
+                                    d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                                </path>
+                            </svg>
+                            <span style="font-size: 0.8125rem;">
+                                {% if LANGUAGE_CODE == 'en' %}EN
+                                {% elif LANGUAGE_CODE == 'ru' %}RU
+                                {% elif LANGUAGE_CODE == 'ky' %}KY
+                                {% else %}EN{% endif %}
+                            </span>
+                        </button>
+                        <div class="lang-dropdown">
+                            <a href="?lang=en"
+                                class="lang-option {% if LANGUAGE_CODE == 'en' %}active{% endif %}">English</a>
+                            <a href="?lang=ru"
+                                class="lang-option {% if LANGUAGE_CODE == 'ru' %}active{% endif %}">Русский</a>
+                            <a href="?lang=ky"
+                                class="lang-option {% if LANGUAGE_CODE == 'ky' %}active{% endif %}">Кыргызча</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+
+    <!-- Main JavaScript -->
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

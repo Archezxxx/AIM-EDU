@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Item Analysis" %} - {{ exam_title }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="topbar-title">{% trans "Item Analysis" %}: {{ exam_title }}</h1>
+    </div>
+    <div class="topbar-actions">
+        <a href="{% if source == 'zipgrade' %}{% url 'zipgrade:exam_detail' exam.pk %}{% else %}{% url 'exams:exam_results' exam.pk %}{% endif %}"
+            class="btn btn-outline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {% trans "Back to Exam" %}
+        </a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card" style="margin-bottom: var(--spacing-lg);">
+    <h3>{% trans "Question Analysis Overview" %}</h3>
+    <p class="text-muted">{% trans "This analysis shows the distribution of student answers for each question.
+        Misconceptions are highlighted when a wrong answer choice is selected by 30% or more of students." %}</p>
+</div>
+
+<div class="grid-container"
+    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: var(--spacing-lg);">
+    {% for q_num, data in analysis.items %}
+    <div class="card">
+        <h4 style="margin-bottom: var(--spacing-md);">
+            {% trans "Question" %} {{ q_num }}
+            {% if data.misconception %}
+            <span class="badge badge-warning" style="margin-left: 8px;">⚠️ {% trans "Misconception Detected" %}</span>
+            {% endif %}
+        </h4>
+
+        <div style="margin-bottom: var(--spacing-md);">
+            <small class="text-muted">{% trans "Total Responses" %}: {{ data.total_responses }}</small>
+        </div>
+
+        <div class="distribution-bars">
+            {% for answer, count in data.distribution.items %}
+            <div class="dist-row" style="display: flex; align-items: center; margin-bottom: 8px;">
+                <span style="width: 30px; font-weight: 600;">{{ answer }}</span>
+                <div
+                    style="flex: 1; background: var(--bg-secondary); border-radius: 4px; height: 24px; margin: 0 10px; overflow: hidden;">
+                    <div style="height: 100%; width: {{ data.percentages|default_if_none:0 }}%; background: {% if data.misconception and data.misconception.answer == answer %}var(--warning){% else %}var(--primary){% endif %}; border-radius: 4px; transition: width 0.3s;"
+                        data-width="{{ data.percentages|default:'0' }}"></div>
+                </div>
+                <span style="width: 60px; text-align: right;">{{ count }} ({% widthratio count data.total_responses 100
+                    %}%)</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if data.misconception %}
+        <div class="alert alert-warning" style="margin-top: var(--spacing-md); padding: 10px;">
+            <strong>{% trans "Common Misconception" %}:</strong>
+            {{ data.misconception.percentage }}% {% trans "of students chose" %} <strong>{{ data.misconception.answer
+                }}</strong>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="card">
+        <p class="text-muted text-center">{% trans "No answer data available for this exam." %}</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card" style="margin-top: var(--spacing-xl);">
+    <h3>{% trans "Answer Distribution Chart" %}</h3>
+    <canvas id="distributionChart" height="300"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const analysisData = {{ analysis_json| safe }};
+
+    // Prepare chart data
+    const questions = Object.keys(analysisData).sort((a, b) => {
+        const numA = parseInt(a.replace(/\D/g, '')) || 0;
+        const numB = parseInt(b.replace(/\D/g, '')) || 0;
+        return numA - numB;
+    });
+
+    const datasets = {};
+    const colors = { 'A': '#4f46e5', 'B': '#10b981', 'C': '#f59e0b', 'D': '#ef4444', 'E': '#8b5cf6' };
+
+    questions.forEach(q => {
+        const dist = analysisData[q].distribution || {};
+        Object.keys(dist).forEach(answer => {
+            if (!datasets[answer]) {
+                datasets[answer] = {
+                    label: answer,
+                    data: [],
+                    backgroundColor: colors[answer] || '#666',
+                };
+            }
+        });
+    });
+
+    questions.forEach(q => {
+        const dist = analysisData[q].distribution || {};
+        const total = analysisData[q].total_responses || 1;
+        Object.keys(datasets).forEach(answer => {
+            const count = dist[answer] || 0;
+            datasets[answer].data.push(Math.round((count / total) * 100));
+        });
+    });
+
+    const ctx = document.getElementById('distributionChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: questions,
+            datasets: Object.values(datasets)
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            return context.dataset.label + ': ' + context.raw + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { title: { display: true, text: '{% trans "Question" %}' } },
+                y: {
+                    title: { display: true, text: '{% trans "Percentage" %}' },
+                    max: 100,
+                    ticks: { callback: function (v) { return v + '%'; } }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

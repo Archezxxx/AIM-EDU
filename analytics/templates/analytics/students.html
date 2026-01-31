@@ -1,0 +1,428 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Student Analytics" %}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="topbar-title">{% trans "Student Analytics" %}</h1>
+        <div style="margin-left: 20px; display: flex; gap: 4px;">
+            <a href="?{% if selected_school %}school_id={{ selected_school.pk }}&{% endif %}{% if student %}student_id={{ student.pk }}&{% endif %}source=zipgrade"
+                class="btn btn-sm {% if source == 'zipgrade' %}btn-primary{% else %}btn-outline{% endif %}">
+                {% trans "ZipGrade" %}
+            </a>
+            <a href="?{% if selected_school %}school_id={{ selected_school.pk }}&{% endif %}{% if student %}student_id={{ student.pk }}&{% endif %}source=exams"
+                class="btn btn-sm {% if source == 'exams' %}btn-primary{% else %}btn-outline{% endif %}">
+                {% trans "Online Exams" %}
+            </a>
+        </div>
+    </div>
+    {% if student %}
+    <div class="topbar-actions">
+        <a href="{% url 'analytics:student_advanced' student.pk %}?source={{ source }}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                <path
+                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+            {% trans "Advanced Analytics" %}
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% include 'partials/messages.html' %}
+
+<!-- Filters Card -->
+<div class="card" style="margin-bottom: var(--spacing-lg);">
+    <form method="get" id="filterForm">
+        <input type="hidden" name="source" value="{{ source }}">
+        <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-md); align-items: flex-end;">
+            <!-- School Filter -->
+            {% if schools|length > 1 %}
+            <div class="form-group" style="margin-bottom: 0; min-width: 180px;">
+                <label class="form-label">{% trans "School" %}</label>
+                <select name="school_id" class="form-select" onchange="this.form.submit()">
+                    {% for s in schools %}
+                    <option value="{{ s.pk }}" {% if selected_school.pk == s.pk %}selected{% endif %}>{{ s.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% else %}
+            <input type="hidden" name="school_id" value="{{ selected_school.pk }}">
+            {% endif %}
+
+            <!-- Grade Filter -->
+            <div class="form-group" style="margin-bottom: 0; min-width: 100px;">
+                <label class="form-label">{% trans "Class" %}</label>
+                <select name="grade" class="form-select">
+                    <option value="">{% trans "All" %}</option>
+                    {% for g in all_grades %}
+                    <option value="{{ g }}" {% if grade_filter == g %}selected{% endif %}>{{ g }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Section Filter -->
+            <div class="form-group" style="margin-bottom: 0; min-width: 80px;">
+                <label class="form-label">{% trans "Section" %}</label>
+                <select name="section" class="form-select">
+                    <option value="">{% trans "All" %}</option>
+                    {% for s in all_sections %}
+                    <option value="{{ s }}" {% if section_filter == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Name Search -->
+            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+                <label class="form-label">{% trans "Search" %}</label>
+                <input type="text" name="q" class="form-input" placeholder="{% trans 'Name or ID...' %}"
+                    value="{{ name_search }}">
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                </svg>
+                {% trans "Filter" %}
+            </button>
+
+            {% if grade_filter or section_filter or name_search %}
+            <a href="?school_id={{ selected_school.pk }}&source={{ source }}" class="btn btn-outline">{% trans "Clear"
+                %}</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Main Content Grid -->
+<div
+    style="display: grid; grid-template-columns: {% if student %}350px 1fr{% else %}1fr{% endif %}; gap: var(--spacing-lg);">
+
+    <!-- Student List -->
+    <div class="card" style="max-height: 600px; overflow-y: auto;">
+        <h3
+            style="margin-bottom: var(--spacing-md); position: sticky; top: 0; background: var(--card-bg); padding-bottom: var(--spacing-sm);">
+            {% trans "Students" %}
+            <span class="badge badge-secondary">{{ students.paginator.count }}</span>
+        </h3>
+
+        {% if students %}
+        <div class="list-group">
+            {% for s in students %}
+            <a href="?school_id={{ selected_school.pk }}&grade={{ grade_filter }}&section={{ section_filter }}&q={{ name_search }}&student_id={{ s.pk }}&source={{ source }}"
+                class="list-group-item {% if student and s.pk == student.pk %}active{% endif %}"
+                style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>{{ s.surname }} {{ s.name }}</strong>
+                    <div class="text-muted" style="font-size: 0.85em;">ID: {{ s.student_id }}</div>
+                </div>
+                <span class="badge badge-secondary">{{ s.grade }}{{ s.section }}</span>
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if students.has_other_pages %}
+        <div
+            style="display: flex; justify-content: center; gap: var(--spacing-sm); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border);">
+            {% if students.has_previous %}
+            <a href="?school_id={{ selected_school.pk }}&grade={{ grade_filter }}&section={{ section_filter }}&q={{ name_search }}&source={{ source }}&page={{ students.previous_page_number }}"
+                class="btn btn-sm btn-outline">&laquo;</a>
+            {% endif %}
+            <span class="btn btn-sm btn-primary">{{ students.number }} / {{ students.paginator.num_pages }}</span>
+            {% if students.has_next %}
+            <a href="?school_id={{ selected_school.pk }}&grade={{ grade_filter }}&section={{ section_filter }}&q={{ name_search }}&source={{ source }}&page={{ students.next_page_number }}"
+                class="btn btn-sm btn-outline">&raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="text-muted text-center">{% trans "No students found." %}</p>
+        {% endif %}
+    </div>
+
+    {% if student %}
+    <!-- Student Analytics Panel -->
+    <div>
+        <!-- Student Info Header -->
+        <div class="card"
+            style="margin-bottom: var(--spacing-lg); background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, #4338ca) 100%); color: white;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin: 0; color: white;">{{ student.surname }} {{ student.name }}</h2>
+                    <div style="opacity: 0.9; margin-top: 4px;">
+                        ID: {{ student.student_id }} | {% trans "Class" %}: {{ student.grade }}{{ student.section }} |
+                        {{ student.school.name }}
+                    </div>
+                </div>
+                {% if class_avg %}
+                <div style="text-align: right;">
+                    <div style="opacity: 0.8; font-size: 0.85em;">{% trans "Class Average" %}</div>
+                    <div style="font-size: 1.5em; font-weight: bold;">{{ class_avg }}%</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if total_exams %}
+        <!-- Stats Cards -->
+        <div
+            style="display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+            <div class="card text-center">
+                <div class="text-muted" style="font-size: 0.85em;">{% trans "Total Exams" %}</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--primary);">{{ total_exams }}</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-muted" style="font-size: 0.85em;">{% trans "Passed" %}</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--success);">{{ passed_exams }}</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-muted" style="font-size: 0.85em;">{% trans "Avg Score" %}</div>
+                <div
+                    style="font-size: 2em; font-weight: bold; color: {% if avg_score >= 60 %}var(--success){% else %}var(--danger){% endif %};">
+                    {{ avg_score }}%</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-muted" style="font-size: 0.85em;">{% trans "Best" %}</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--success);">{{ max_score }}%</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-muted" style="font-size: 0.85em;">{% trans "Worst" %}</div>
+                <div style="font-size: 2em; font-weight: bold; color: var(--danger);">{{ min_score }}%</div>
+            </div>
+        </div>
+
+        <!-- Strengths & Weaknesses -->
+        {% if strengths or weaknesses %}
+        <div
+            style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); margin-bottom: var(--spacing-lg);">
+            <div class="card">
+                <h3 style="color: var(--success); margin-bottom: var(--spacing-md);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                        <polyline points="17 6 23 6 23 12" />
+                    </svg>
+                    {% trans "Strong Subjects" %}
+                </h3>
+                {% for s in strengths %}
+                <div
+                    style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                    <span>{{ s.name }}</span>
+                    <span class="badge badge-success">{{ s.avg_score }}%</span>
+                </div>
+                {% empty %}
+                <p class="text-muted">{% trans "Not enough data" %}</p>
+                {% endfor %}
+            </div>
+            <div class="card">
+                <h3 style="color: var(--danger); margin-bottom: var(--spacing-md);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+                        <polyline points="17 18 23 18 23 12" />
+                    </svg>
+                    {% trans "Weak Subjects" %}
+                </h3>
+                {% for s in weaknesses %}
+                <div
+                    style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                    <span>{{ s.name }}</span>
+                    <span class="badge badge-danger">{{ s.avg_score }}%</span>
+                </div>
+                {% empty %}
+                <p class="text-muted">{% trans "Not enough data" %}</p>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Charts Row -->
+        <div
+            style="display: grid; grid-template-columns: {% if radar_labels %}1fr 1fr{% else %}1fr{% endif %}; gap: var(--spacing-lg); margin-bottom: var(--spacing-lg);">
+            <div class="card">
+                <h3>{% trans "Progress Chart" %}</h3>
+                <canvas id="progressChart" height="200"></canvas>
+            </div>
+            {% if radar_labels %}
+            <div class="card">
+                <h3>{% trans "Subject Radar" %}</h3>
+                <canvas id="radarChart" height="200"></canvas>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Subject Breakdown Table -->
+        {% if subject_breakdown %}
+        <div class="card" style="margin-bottom: var(--spacing-lg);">
+            <h3>{% trans "Subject Performance" %}</h3>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Subject" %}</th>
+                            <th>{% trans "Avg Score" %}</th>
+                            <th>{% trans "Exams" %}</th>
+                            <th>{% trans "Trend" %}</th>
+                            <th>{% trans "Status" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subj in subject_breakdown %}
+                        <tr>
+                            <td><strong>{{ subj.name }}</strong></td>
+                            <td>
+                                <span
+                                    style="color: {% if subj.avg_score >= 70 %}var(--success){% elif subj.avg_score >= 50 %}var(--warning){% else %}var(--danger){% endif %}; font-weight: 600;">
+                                    {{ subj.avg_score }}%
+                                </span>
+                            </td>
+                            <td class="text-muted">{{ subj.exam_count }}</td>
+                            <td>
+                                {% if subj.trend == 'up' %}
+                                <span style="color: var(--success);">↑ {% trans "Improving" %}</span>
+                                {% else %}
+                                <span style="color: var(--danger);">↓ {% trans "Declining" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if subj.category == 'strong' %}
+                                <span class="badge badge-success">{% trans "Strong" %}</span>
+                                {% elif subj.category == 'weak' %}
+                                <span class="badge badge-danger">{% trans "Weak" %}</span>
+                                {% else %}
+                                <span class="badge badge-secondary">{% trans "Average" %}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent Exams Table -->
+        <div class="card">
+            <h3>{% trans "Recent Exams" %}</h3>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Exam" %}</th>
+                            <th>{% trans "Date" %}</th>
+                            <th>{% trans "Score" %}</th>
+                            <th>{% trans "Result" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in attempts|slice:":10" %}
+                        <tr>
+                            <td>{{ a.exam.title }}</td>
+                            <td class="text-muted">{% if source == 'zipgrade' %}{{ a.exam.exam_date|date:"d M Y" }}{%
+                                else %}{{ a.started_at|date:"d M Y" }}{% endif %}</td>
+                            <td>
+                                <span
+                                    style="font-weight: 600; color: {% if a.percentage >= 60 %}var(--success){% else %}var(--danger){% endif %};">
+                                    {{ a.percentage }}%
+                                </span>
+                            </td>
+                            <td>
+                                {% if a.percentage >= 60 %}
+                                <span class="badge badge-success">{% trans "Passed" %}</span>
+                                {% else %}
+                                <span class="badge badge-danger">{% trans "Failed" %}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% else %}
+        <div class="card text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1" style="margin: 20px auto; opacity: 0.5;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <p class="text-muted">{% trans "No exam data found for this student." %}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% if student and attempts %}
+<script>
+    // Progress Chart
+    var ctx = document.getElementById('progressChart');
+    if (ctx) {
+        new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels| safe }},
+    datasets: [{
+        label: '{% trans "Score" %}',
+        data: {{ chart_data| safe }},
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        tension: 0.3,
+        fill: true
+            }]
+        },
+    options: {
+        responsive: true,
+            scales: { y: { min: 0, max: 100 } },
+        plugins: { legend: { display: false } }
+    }
+    });
+}
+
+    {% if radar_labels %}
+    // Radar Chart
+    var radarCtx = document.getElementById('radarChart');
+    if (radarCtx) {
+        new Chart(radarCtx.getContext('2d'), {
+            type: 'radar',
+            data: {
+                labels: {{ radar_labels| safe }},
+    datasets: [{
+        label: '{% trans "Score" %}',
+        data: {{ radar_data| safe }},
+        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+        borderColor: '#4f46e5',
+        borderWidth: 2,
+        pointBackgroundColor: '#4f46e5'
+            }]
+        },
+    options: {
+        responsive: true,
+            scales: {
+            r: {
+                min: 0,
+                    max: 100,
+                        ticks: { stepSize: 20 }
+            }
+        },
+        plugins: { legend: { display: false } }
+    }
+    });
+}
+    {% endif %}
+</script>
+{% endif %}
+{% endblock %}

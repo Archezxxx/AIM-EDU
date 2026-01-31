@@ -1,0 +1,53 @@
+{% extends 'base_auth.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Login" %} - AIMS EXAM{% endblock %}
+
+{% block auth_title %}{% trans "Welcome Back" %}{% endblock %}
+{% block auth_subtitle %}{% trans "Sign in to your AIMS EXAM account" %}{% endblock %}
+
+{% block auth_content %}
+<form method="post" class="auth-form" data-validate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+        {{ form.non_field_errors.0 }}
+    </div>
+    {% endif %}
+
+    <div class="form-group">
+        <label for="id_email" class="form-label">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+        <span class="form-error">{{ form.email.errors.0 }}</span>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="id_password" class="form-label">{{ form.password.label }}</label>
+        {{ form.password }}
+        {% if form.password.errors %}
+        <span class="form-error">{{ form.password.errors.0 }}</span>
+        {% endif %}
+    </div>
+
+    <div class="form-group" style="display: flex; align-items: center; gap: var(--spacing-sm);">
+        {{ form.remember_me }}
+        <label for="id_remember_me" style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">
+            {{ form.remember_me.label }}
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block btn-lg">
+        {% trans "Sign In" %}
+    </button>
+</form>
+{% endblock %}
+
+{% block auth_footer %}
+<p style="color: var(--text-muted); font-size: 0.875rem;">
+    {% trans "Don't have an account?" %}
+    <a href="{% url 'accounts:register' %}">{% trans "Register as Student" %}</a>
+</p>
+{% endblock %}

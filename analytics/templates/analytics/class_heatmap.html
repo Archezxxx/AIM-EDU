@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Class Heatmap & Distribution" %}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="topbar-title">{% trans "Topic Mastery Heatmap" %}</h1>
+    </div>
+    <div class="topbar-actions">
+        <a href="{% url 'analytics:classes' %}" class="btn btn-outline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {% trans "Back to Classes" %}
+        </a>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card" style="margin-bottom: var(--spacing-lg);">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: var(--spacing-md); align-items: flex-end;">
+        <div class="form-group" style="margin-bottom: 0; min-width: 150px;">
+            <label class="form-label">{% trans "Class" %}</label>
+            <select name="grade" class="form-select">
+                <option value="">{% trans "All Classes" %}</option>
+                {% for cls in classes %}
+                <option value="{{ cls.grade }}" {% if selected_grade == cls.grade %}selected{% endif %}>{% trans "Grade" %} {{ cls.grade }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0; min-width: 120px;">
+            <label class="form-label">{% trans "Section" %}</label>
+            <select name="section" class="form-select">
+                <option value="">{% trans "All" %}</option>
+                {% for cls in classes %}
+                {% if cls.section %}
+                <option value="{{ cls.section }}" {% if selected_section == cls.section %}selected{% endif %}>{{ cls.section }}</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 250px;">
+            <label class="form-label">{% trans "Exams" %}</label>
+            <select name="exam_ids" multiple class="form-select" style="min-height: 80px;">
+                {% for exam in available_exams %}
+                <option value="{{ exam.pk }}">{{ exam.title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">{% trans "Apply" %}</button>
+    </form>
+</div>
+
+<div class="card" style="margin-bottom: var(--spacing-xl); overflow-x: auto;">
+    <h3>{% trans "Student x Topic Performance Matrix" %}</h3>
+    <div id="heatmapContainer" style="min-width: 600px;"></div>
+</div>
+
+<div class="card">
+    <h3>{% trans "Grade Distribution" %}</h3>
+    <canvas id="distributionChart" height="200"></canvas>
+    <div id="distributionStats" style="display: flex; justify-content: center; gap: var(--spacing-xl); margin-top: var(--spacing-md);"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+var heatmapData = {{ heatmap_data|safe }};
+var distributionData = {{ distribution_data|safe }};
+
+function getHeatmapColor(value) {
+    if (value  == = null) return '#f3f4f6';
+    if (value >= 80) return '#10b981';
+    if (value >= 60) return '#84cc16';
+    if (value >= 40) return '#f59e0b';
+    if (value >= 20) return '#f97316';
+    return '#ef4444';
+}
+
+function buildHeatmap() {
+    var container = document.getElementById('heatmapContainer');
+    if (!heatmapData.students || heatmapData.students.length  == = 0) {
+        container.innerHTML = '<p class="text-muted text-center">No data available.</p>';
+        return;
+    }
+    var html = '<table class="table table-sm"><thead><tr><th>Student</th>';
+    for (var i = 0; i < heatmapData.topics.length; i++) {
+        html += '<th style="text-align:center;">' + heatmapData.topics[i] + '</th>';
+    }
+    html += '</tr></thead><tbody>';
+    for (var s = 0; s < heatmapData.students.length; s++) {
+        html += '<tr><td>' + heatmapData.students[s] + '</td>';
+        for (var v = 0; v < heatmapData.values[s].length; v++) {
+            var val = heatmapData.values[s][v];
+            var color = getHeatmapColor(val);
+            var text = val ! ==  null ? val + '%' : '-';
+            html += '<td style="text-align:center;background:' + color + ';color:' + (val > 50 ? '#fff' : '#000') + ';">' + text + '</td>';
+        }
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+buildHeatmap();
+
+if (distributionData.buckets) {
+    var ctx = document.getElementById('distributionChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: distributionData.buckets,
+            datasets: [{ label: 'Students', data: distributionData.frequencies, backgroundColor: 'rgba(59, 130, 246, 0.7)', borderRadius: 4 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+    document.getElementById('distributionStats').innerHTML = 
+        '<div><span class="text-muted">Total:</span> ' + distributionData.total + '</div>' +
+        '<div><span class="text-muted">Mean:</span> ' + distributionData.mean + '%</div>' +
+        '<div><span class="text-muted">Max:</span> ' + distributionData.max + '%</div>' +
+        '<div><span class="text-muted">Min:</span> ' + distributionData.min + '%</div>';
+}
+</script>
+{% endblock %}
