@@ -58,7 +58,7 @@ class AnalyticsHelper:
         from schools.models import Subject
         from django.db.models import Avg, Count
         
-        subjects = Subject.objects.filter(exams__school=school).distinct()
+        subjects = Subject.objects.filter(online_exams__school=school).distinct()
         performance = []
         
         for subject in subjects:
