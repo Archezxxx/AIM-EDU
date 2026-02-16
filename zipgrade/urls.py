@@ -12,6 +12,8 @@ urlpatterns = [
     path('results/', views.results_view, name='results'),
     path('exam/<int:pk>/', views.exam_detail_view, name='exam_detail'),
     path('exam/<int:pk>/delete/', views.delete_exam_view, name='exam_delete'),
+    path('exam/<int:pk>/export/', views.export_exam_results_excel, name='export_exam_results'),
+    path('exam/<int:pk>/answer-key/', views.set_answer_key_view, name='set_answer_key'),
     
     # Subject splits
     path('exam/<int:exam_pk>/split/add/', views.add_subject_split_view, name='add_split'),

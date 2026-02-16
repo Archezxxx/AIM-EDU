@@ -1,13 +1,15 @@
 {% extends 'base.html' %}
 {% load i18n widget_tweaks %}
 
-{% block title %}{% if is_edit %}{% trans "Edit Question" %}{% else %}{% trans "Add Question" %}{% endif %} - AIMS EXAM{% endblock %}
+{% block title %}{% if is_edit %}{% trans "Edit Question" %}{% else %}{% trans "Add Question" %}{% endif %} - AIMS
+EXAM{% endblock %}
 
 {% block content %}
 <div class="topbar">
     <div class="topbar-left">
         <a href="{% url 'exams:exam_questions' exam.pk %}" class="back-link">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
             {% trans "Back to Questions" %}
@@ -66,18 +68,21 @@
             {{ form.question_image }}
         </div>
 
+        {# === Fill in the Blanks Section === #}
         <div id="fill-blanks-section" style="display: none;">
             <h3 style="margin: var(--spacing-xl) 0 var(--spacing-lg);">{% trans "Correct Answers" %}</h3>
             <div class="form-group">
                 <label class="form-label">{% trans "Correct Answers (separate variants with |)" %}</label>
                 {{ form.correct_answers }}
-                <small class="text-muted">{% trans "Example: Moscow|moscow|MOSCOW - student can type any of these" %}</small>
+                <small class="text-muted">{% trans "Example: Moscow|moscow|MOSCOW - student can type any of these"
+                    %}</small>
                 {% if form.correct_answers.errors %}
                 <div class="text-danger">{{ form.correct_answers.errors }}</div>
                 {% endif %}
             </div>
         </div>
 
+        {# === Multiple Choice Section === #}
         <div id="multiple-choice-section">
             <h3 style="margin: var(--spacing-xl) 0 var(--spacing-lg);">{% trans "Answer Options" %}</h3>
 
@@ -85,7 +90,8 @@
 
             <div id="options-container">
                 {% for option_form in formset %}
-                <div class="option-row" style="display: flex; gap: var(--spacing-md); align-items: center; margin-bottom: var(--spacing-md); padding: var(--spacing-sm); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                <div class="option-row"
+                    style="display: flex; gap: var(--spacing-md); align-items: center; margin-bottom: var(--spacing-md); padding: var(--spacing-sm); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
                     {{ option_form.id }}
                     <div style="flex: 1;">{{ option_form.text }}</div>
                     <div style="display: flex; align-items: center; gap: var(--spacing-xs);">
@@ -104,6 +110,48 @@
             </div>
         </div>
 
+        {# === Matching Pairs Section === #}
+        <div id="matching-section" style="display: none;">
+            <h3 style="margin: var(--spacing-xl) 0 var(--spacing-lg);">
+                {% trans "Matching Pairs" %}
+            </h3>
+            <p style="color: var(--text-secondary); font-size: 0.9em; margin-bottom: var(--spacing-md);">
+                {% trans "Define A ↔ B pairs. Students will match Column A items to Column B items." %}
+            </p>
+
+            {{ matching_formset.management_form }}
+
+            <div id="matching-pairs-container">
+                {% for pair_form in matching_formset %}
+                <div class="matching-pair-row"
+                    style="display: flex; gap: var(--spacing-md); align-items: center; margin-bottom: var(--spacing-md); padding: var(--spacing-sm); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                    {{ pair_form.id }}
+                    <div style="flex: 1;">
+                        <small style="color: var(--text-secondary);">{% trans "Column A" %}</small>
+                        {{ pair_form.left_item }}
+                    </div>
+                    <div style="font-size: 1.2em; color: var(--text-secondary);">↔</div>
+                    <div style="flex: 1;">
+                        <small style="color: var(--text-secondary);">{% trans "Column B" %}</small>
+                        {{ pair_form.right_item }}
+                    </div>
+                    <div style="width: 80px;">{{ pair_form.order }}</div>
+                    {% if matching_formset.can_delete %}
+                    <div>
+                        {{ pair_form.DELETE }}
+                        <label>{% trans "Delete" %}</label>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" class="btn btn-sm btn-outline" onclick="addMatchingPair()"
+                style="margin-top: var(--spacing-sm);">
+                + {% trans "Add Pair" %}
+            </button>
+        </div>
+
         <div style="margin-top: var(--spacing-xl); display: flex; justify-content: flex-end;">
             <button type="submit" class="btn btn-primary">
                 {% if is_edit %}{% trans "Save Changes" %}{% else %}{% trans "Add Question" %}{% endif %}
@@ -115,26 +163,48 @@
 
 {% block extra_js %}
 <script>
-function toggleQuestionType() {
-    var typeSelect = document.getElementById('id_question_type');
-    var fillBlanksSection = document.getElementById('fill-blanks-section');
-    var multipleChoiceSection = document.getElementById('multiple-choice-section');
-    
-    if (typeSelect.value  == = 'fill_blanks') {
-        fillBlanksSection.style.display = 'block';
-        multipleChoiceSection.style.display = 'none';
-    } else {
-        fillBlanksSection.style.display = 'none';
-        multipleChoiceSection.style.display = 'block';
-    }
-}
+    function toggleQuestionType() {
+        var typeSelect = document.getElementById('id_question_type');
+        var fillBlanksSection = document.getElementById('fill-blanks-section');
+        var multipleChoiceSection = document.getElementById('multiple-choice-section');
+        var matchingSection = document.getElementById('matching-section');
 
-document.addEventListener('DOMContentLoaded', function() {
-    var typeSelect = document.getElementById('id_question_type');
-    if (typeSelect) {
-        typeSelect.addEventListener('change', toggleQuestionType);
-        toggleQuestionType();
+        if (typeSelect.value === 'fill_blanks') {
+            fillBlanksSection.style.display = 'block';
+            multipleChoiceSection.style.display = 'none';
+            matchingSection.style.display = 'none';
+        } else if (typeSelect.value === 'matching') {
+            fillBlanksSection.style.display = 'none';
+            multipleChoiceSection.style.display = 'none';
+            matchingSection.style.display = 'block';
+        } else {
+            fillBlanksSection.style.display = 'none';
+            multipleChoiceSection.style.display = 'block';
+            matchingSection.style.display = 'none';
+        }
     }
-});
+
+    function addMatchingPair() {
+        var container = document.getElementById('matching-pairs-container');
+        var totalFormsInput = document.getElementById('id_matching_pairs-TOTAL_FORMS');
+        var formIndex = parseInt(totalFormsInput.value);
+
+        var newRow = document.createElement('div');
+        newRow.className = 'matching-pair-row';
+        newRow.style.cssText = 'display: flex; gap: var(--spacing-md); align-items: center; margin-bottom: var(--spacing-md); padding: var(--spacing-sm); border: 1px solid var(--border-color); border-radius: var(--radius-sm);';
+
+        newRow.innerHTML = '<div style="flex: 1;"><small style="color: var(--text-secondary);">Column A</small><input type="text" name="matching_pairs-' + formIndex + '-left_item" class="form-input" placeholder="Column A item"></div><div style="font-size: 1.2em; color: var(--text-secondary);">↔</div><div style="flex: 1;"><small style="color: var(--text-secondary);">Column B</small><input type="text" name="matching_pairs-' + formIndex + '-right_item" class="form-input" placeholder="Column B item"></div><div style="width: 80px;"><input type="number" name="matching_pairs-' + formIndex + '-order" value="' + formIndex + '" class="form-input" min="0"></div><div><input type="checkbox" name="matching_pairs-' + formIndex + '-DELETE"><label>Delete</label></div>';
+
+        container.appendChild(newRow);
+        totalFormsInput.value = formIndex + 1;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var typeSelect = document.getElementById('id_question_type');
+        if (typeSelect) {
+            typeSelect.addEventListener('change', toggleQuestionType);
+            toggleQuestionType();
+        }
+    });
 </script>
 {% endblock %}

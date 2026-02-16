@@ -1,4 +1,5 @@
 from django import forms
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 from .models import ZipGradeExam, SubjectSplit
 from schools.models import School, Subject
@@ -80,11 +81,8 @@ class SubjectSplitForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.exam = exam
         
-        # Filter subjects by exam's school
-        if exam and exam.school:
-            self.fields['subject'].queryset = Subject.objects.filter(
-                models.Q(school=exam.school) | models.Q(school__isnull=True)
-            )
+        # Show all active subjects (subjects are typically shared across schools)
+        self.fields['subject'].queryset = Subject.objects.filter(is_active=True)
     
     def clean(self):
         cleaned_data = super().clean()
@@ -111,7 +109,9 @@ class SubjectSplitForm(forms.ModelForm):
                     existing_splits = existing_splits.exclude(pk=self.instance.pk)
                 
                 for split in existing_splits:
-                    if (start <= split.end_question and end >= split.start_question):
+                    # Ranges overlap if: new_start < existing_end AND new_end > existing_start
+                    # This allows adjacent ranges like 1-30 and 31-60
+                    if (start < split.end_question and end > split.start_question):
                         raise forms.ValidationError(
                             _('Question range overlaps with existing split: %(subject)s (Q%(start)s-Q%(end)s)') %
                             {

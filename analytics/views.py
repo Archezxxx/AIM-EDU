@@ -47,6 +47,14 @@ def school_analytics_view(request):
     school_comparison_labels = []
     school_comparison_data = []
     
+    # Performance distribution for PieChart
+    performance_labels = []
+    performance_data = []
+    
+    # Class comparison for ZipGrade
+    class_comparison_labels = []
+    class_comparison_data = []
+    
     # Available exams and subjects for filters
     available_exams = []
     available_subjects = []
@@ -160,6 +168,15 @@ def school_analytics_view(request):
         # School Comparison Chart (all schools avg scores)
         if request.user.is_super_admin:
             school_comparison_labels, school_comparison_data = AnalyticsHelper.get_school_comparison_data(selected_exam_ids, selected_subject_id)
+        
+        # Performance Distribution PieChart
+        performance_labels, performance_data = AnalyticsHelper.get_performance_distribution(exam_ids)
+        
+        # Class Comparison (Average Score) for ZipGrade — only when a specific school is selected
+        if school:
+            class_breakdown = AnalyticsHelper.get_zipgrade_class_breakdown(exam_ids, school)
+            class_comparison_labels = [c['name'] for c in class_breakdown]
+            class_comparison_data = [c['avg_score'] for c in class_breakdown]
 
     context = {
         'school': school,
@@ -171,6 +188,10 @@ def school_analytics_view(request):
         'source': source,
         'school_comparison_labels': school_comparison_labels,
         'school_comparison_data': school_comparison_data,
+        'performance_labels': performance_labels,
+        'performance_data': performance_data,
+        'class_comparison_labels': class_comparison_labels,
+        'class_comparison_data': class_comparison_data,
         'available_exams': available_exams,
         'available_subjects': available_subjects,
         'selected_exam_ids': selected_exam_ids,
@@ -180,6 +201,7 @@ def school_analytics_view(request):
     }
     
     return render(request, 'analytics/schools.html', context)
+
 
 
 
@@ -236,9 +258,23 @@ def class_analytics_view(request):
             chart_data.append(cls_stats['avg_score'])
     else:
         # ZipGrade source
-        from zipgrade.models import ZipGradeExam
+        from zipgrade.models import ZipGradeExam, ExamResult
+        from schools.models import Subject
         zipgrade_exams = ZipGradeExam.objects.filter(school=school)
-        exam_ids = list(zipgrade_exams.values_list('pk', flat=True))
+        
+        # Available filters for template
+        available_exams = list(zipgrade_exams.values('pk', 'title'))
+        available_subjects = list(Subject.objects.filter(is_active=True).values('pk', 'name'))
+        
+        # Apply exam filter
+        selected_exam_ids = request.GET.getlist('exam_ids')
+        if selected_exam_ids:
+            exam_ids = [int(eid) for eid in selected_exam_ids if eid.isdigit()]
+        else:
+            exam_ids = list(zipgrade_exams.values_list('pk', flat=True))
+        
+        # Subject filter
+        selected_subject_id = request.GET.get('subject_id', '')
         
         if selected_grade and selected_section:
             selected_class = {'grade': selected_grade, 'section': selected_section, 
@@ -254,8 +290,16 @@ def class_analytics_view(request):
             # Find stats for selected class
             for cls_data in class_breakdown:
                 if cls_data['name'] == selected_class['name']:
+                    # Count exams that actually have data for this class
+                    class_exam_count = ExamResult.objects.filter(
+                        exam_id__in=exam_ids,
+                        student__grade=selected_grade,
+                        student__section=selected_section
+                    ).values('exam_id').distinct().count()
+                    
                     stats = {
                         'total_students': cls_data['student_count'],
+                        'total_exams': class_exam_count,
                         'avg_score': cls_data['avg_score'],
                         'max_score': cls_data['max_score'],
                         'min_score': cls_data['min_score'],
@@ -266,6 +310,7 @@ def class_analytics_view(request):
             if not stats:
                 stats = {
                     'total_students': 0,
+                    'total_exams': 0,
                     'avg_score': 0,
                     'max_score': 0,
                     'min_score': 0,
@@ -276,10 +321,52 @@ def class_analytics_view(request):
             # Chart data from ZipGrade class breakdown
             chart_labels = [c['name'] for c in class_breakdown[:10]]
             chart_data = [c['avg_score'] for c in class_breakdown[:10]]
+            
+            # Subject breakdown for selected class (for pie chart)
+            subject_labels, subject_data = AnalyticsHelper.get_class_subject_breakdown(
+                exam_ids, selected_grade, selected_section
+            )
+            
+            # Performance distribution for selected class (for pie chart)
+            perf_labels, perf_data = AnalyticsHelper.get_class_performance_distribution(
+                exam_ids, selected_grade, selected_section
+            )
+            
+            # Ranked students list (all students, high to low)
+            ranked_students = AnalyticsHelper.get_class_ranked_students(
+                exam_ids, selected_grade, selected_section
+            )
         else:
-            stats = {'total_students': 0, 'avg_score': 0, 'max_score': 0, 'min_score': 0, 'pass_rate': 0, 'top_students': []}
+            stats = {'total_students': 0, 'total_exams': 0, 'avg_score': 0, 'max_score': 0, 'min_score': 0, 'pass_rate': 0, 'top_students': []}
             chart_labels = []
             chart_data = []
+            subject_labels = []
+            subject_data = []
+            perf_labels = []
+            perf_data = []
+            ranked_students = []
+    
+    # Initialize variables if not set (exams mode)
+    if source == 'exams':
+        subject_labels = []
+        subject_data = []
+        perf_labels = []
+        perf_data = []
+        ranked_students = []
+        available_exams = []
+        available_subjects = []
+        selected_exam_ids = []
+        selected_subject_id = ''
+    
+    # Ensure filter variables exist for both modes
+    if 'available_exams' not in dir():
+        available_exams = locals().get('available_exams', [])
+    if 'available_subjects' not in dir():
+        available_subjects = locals().get('available_subjects', [])
+    if 'selected_exam_ids' not in dir():
+        selected_exam_ids = locals().get('selected_exam_ids', [])
+    if 'selected_subject_id' not in dir():
+        selected_subject_id = locals().get('selected_subject_id', '')
     
     context = {
         'school': school,
@@ -290,9 +377,19 @@ def class_analytics_view(request):
         'chart_labels': chart_labels,
         'chart_data': chart_data,
         'source': source,
+        'subject_labels': subject_labels,
+        'subject_data': subject_data,
+        'perf_labels': perf_labels,
+        'perf_data': perf_data,
+        'ranked_students': ranked_students,
+        'available_exams': available_exams,
+        'available_subjects': available_subjects,
+        'selected_exam_ids': selected_exam_ids,
+        'selected_subject_id': selected_subject_id,
     }
     
     return render(request, 'analytics/classes.html', context)
+
 
 
 
@@ -548,23 +645,131 @@ def export_analytics_excel_view(request):
 @login_required
 @teacher_or_admin_required
 def export_analytics_pdf_view(request):
-    """Export analytics to PDF."""
-    from .utils import ReportGenerator
+    """Export analytics to PDF — matches the exact data shown on screen."""
+    from .utils import ReportGenerator, AnalyticsHelper
     
     school = None
     if request.user.is_super_admin:
         school_id = request.GET.get('school_id')
-        if school_id:
+        if school_id and school_id != 'all':
             school = get_object_or_404(School, pk=school_id)
-        else:
-            school = School.objects.first()
     else:
         school = request.user.primary_school
+    
+    source = request.GET.get('source', 'exams')
+    
+    if source == 'zipgrade':
+        from zipgrade.models import ZipGradeExam, ExamResult, SubjectResult
+        from schools.models import Subject
         
-    if not school:
-        return render(request, 'analytics/schools.html', {'error': _('No school found')})
+        # Get base exams
+        if school:
+            zipgrade_exams = ZipGradeExam.objects.filter(school=school)
+        else:
+            zipgrade_exams = ZipGradeExam.objects.all()
         
-    return ReportGenerator.generate_pdf_report(school)
+        # Apply folder filter
+        selected_folder_ids = request.GET.getlist('folder_ids')
+        folder_exam_ids = []
+        if selected_folder_ids:
+            folder_ids = [int(fid) for fid in selected_folder_ids if fid.isdigit()]
+            if folder_ids:
+                folder_exam_ids = list(ZipGradeExam.objects.filter(folder__id__in=folder_ids).values_list('pk', flat=True))
+        
+        # Apply exam filter
+        selected_exam_ids = request.GET.getlist('exam_ids')
+        if selected_exam_ids:
+            exam_ids = [int(eid) for eid in selected_exam_ids if eid.isdigit()]
+            if folder_exam_ids:
+                exam_ids = list(set(exam_ids) | set(folder_exam_ids))
+        elif folder_exam_ids:
+            exam_ids = folder_exam_ids
+        else:
+            exam_ids = list(zipgrade_exams.values_list('pk', flat=True))
+        
+        # Compute stats (same logic as school_analytics_view)
+        selected_subject_id = request.GET.get('subject_id', '')
+        stats = {'count': 0, 'avg_score': 0, 'pass_rate': 0, 'max_score': 0, 'min_score': 0}
+        
+        if exam_ids:
+            if selected_subject_id:
+                subject_results = SubjectResult.objects.filter(
+                    result__exam_id__in=exam_ids,
+                    subject_split__subject_id=selected_subject_id
+                )
+                if subject_results.exists():
+                    scores = [float(sr.percentage) for sr in subject_results]
+                    passed_count = sum(1 for s in scores if s >= 60)
+                    stats = {
+                        'count': len(scores),
+                        'avg_score': round(sum(scores) / len(scores), 1),
+                        'pass_rate': round(passed_count / len(scores) * 100, 1),
+                        'max_score': round(max(scores), 1),
+                        'min_score': round(min(scores), 1),
+                    }
+            else:
+                zg_stats = AnalyticsHelper.get_zipgrade_exam_stats(exam_ids)
+                if zg_stats:
+                    stats = {
+                        'count': zg_stats['total_students'],
+                        'avg_score': zg_stats['avg_score'],
+                        'pass_rate': zg_stats['pass_rate'],
+                        'max_score': zg_stats['max_score'],
+                        'min_score': zg_stats['min_score'],
+                    }
+        
+        # Performance distribution
+        perf_labels, perf_data = AnalyticsHelper.get_performance_distribution(exam_ids)
+        
+        # Class comparison (only if specific school)
+        class_comparison = []
+        if school:
+            class_comparison = AnalyticsHelper.get_zipgrade_class_breakdown(exam_ids, school)
+        
+        # Recent exams
+        recent_exams = list(zipgrade_exams.order_by('-exam_date')[:10].values('title', 'exam_date'))
+        
+        # Subject filter name
+        subject_name = ''
+        if selected_subject_id:
+            try:
+                subject_name = Subject.objects.get(pk=selected_subject_id).name
+            except Subject.DoesNotExist:
+                pass
+        
+        report_data = {
+            'source': 'zipgrade',
+            'school_name': school.name if school else 'All Schools',
+            'stats': stats,
+            'performance_distribution': dict(zip(perf_labels, perf_data)) if perf_labels else {},
+            'class_comparison': class_comparison,
+            'recent_exams': recent_exams,
+            'subject_name': subject_name,
+        }
+    else:
+        # Exams source
+        if not school:
+            school = School.objects.first()
+        if not school:
+            return render(request, 'analytics/schools.html', {'error': _('No school found')})
+        
+        school_stats = AnalyticsHelper.get_school_stats(school)['online_exams']
+        chart_labels, chart_values = AnalyticsHelper.get_growth_chart_data(school)
+        
+        report_data = {
+            'source': 'exams',
+            'school_name': school.name,
+            'stats': {
+                'count': school_stats['count'],
+                'avg_score': school_stats['avg_score'],
+                'pass_rate': school_stats['pass_rate'],
+                'max_score': school_stats['max_score'],
+            },
+            'growth_labels': chart_labels,
+            'growth_values': chart_values,
+        }
+    
+    return ReportGenerator.generate_pdf_report(report_data)
 
 
 @login_required
@@ -598,8 +803,8 @@ def export_class_excel_view(request):
 @login_required
 @teacher_or_admin_required
 def export_class_pdf_view(request):
-    """Export class analytics to PDF."""
-    from .utils import ReportGenerator
+    """Export class analytics to PDF — matches data shown on screen."""
+    from .utils import ReportGenerator, AnalyticsHelper
     
     school = None
     if request.user.is_super_admin:
@@ -619,8 +824,69 @@ def export_class_pdf_view(request):
     
     if not grade or not section:
         return render(request, 'analytics/classes.html', {'error': _('Please select a class')})
+    
+    source = request.GET.get('source', 'exams')
+    
+    if source == 'zipgrade':
+        from zipgrade.models import ZipGradeExam, ExamResult
         
-    return ReportGenerator.generate_class_pdf_report(school, grade, section)
+        zipgrade_exams = ZipGradeExam.objects.filter(school=school)
+        selected_exam_ids = request.GET.getlist('exam_ids')
+        if selected_exam_ids:
+            exam_ids = [int(eid) for eid in selected_exam_ids if eid.isdigit()]
+        else:
+            exam_ids = list(zipgrade_exams.values_list('pk', flat=True))
+        
+        # Compute class stats
+        class_breakdown = AnalyticsHelper.get_zipgrade_class_breakdown(exam_ids, school)
+        class_name = f"{grade}{section}"
+        cls_stats = None
+        for c in class_breakdown:
+            if c['name'] == class_name:
+                cls_stats = c
+                break
+        
+        class_exam_count = ExamResult.objects.filter(
+            exam_id__in=exam_ids,
+            student__grade=grade,
+            student__section=section
+        ).values('exam_id').distinct().count()
+        
+        # Performance distribution
+        perf_labels, perf_data = AnalyticsHelper.get_class_performance_distribution(
+            exam_ids, grade, section
+        )
+        
+        # Ranked students
+        ranked_students = AnalyticsHelper.get_class_ranked_students(
+            exam_ids, grade, section
+        )
+        
+        report_data = {
+            'source': 'zipgrade',
+            'school_name': school.name,
+            'class_name': class_name,
+            'stats': {
+                'total_students': cls_stats['student_count'] if cls_stats else 0,
+                'total_exams': class_exam_count,
+                'avg_score': cls_stats['avg_score'] if cls_stats else 0,
+                'pass_rate': cls_stats['pass_rate'] if cls_stats else 0,
+                'max_score': cls_stats['max_score'] if cls_stats else 0,
+                'min_score': cls_stats['min_score'] if cls_stats else 0,
+            },
+            'performance_distribution': dict(zip(perf_labels, perf_data)) if perf_labels else {},
+            'ranked_students': ranked_students,
+        }
+    else:
+        stats = AnalyticsHelper.get_class_stats(school, grade, section)
+        report_data = {
+            'source': 'exams',
+            'school_name': school.name,
+            'class_name': f"{grade}{section}",
+            'stats': stats,
+        }
+    
+    return ReportGenerator.generate_class_pdf_report(report_data)
 
 
 @login_required
@@ -975,3 +1241,111 @@ def api_heatmap_data(request):
     )
     
     return JsonResponse(data)
+
+
+@login_required
+@teacher_or_admin_required
+def rankings_view(request):
+    """Hall of Fame - Multi-dimensional rankings dashboard."""
+    from django.http import JsonResponse
+    from zipgrade.models import ZipGradeExam, SubjectSplit
+    from schools.models import Subject
+    from .ranking_utils import RankingCalculator
+    
+    # Get user's school
+    school = request.user.primary_school if not request.user.is_super_admin else None
+    all_schools = School.objects.filter(is_active=True) if request.user.is_super_admin else None
+    
+    # Filters
+    selected_school_id = request.GET.get('school_id')
+    if selected_school_id and request.user.is_super_admin:
+        school = get_object_or_404(School, pk=selected_school_id)
+    
+    ranking_type = request.GET.get('type', 'absolute')  # absolute, progress, consistency
+    entity_type = request.GET.get('entity', 'student')  # student, class, school
+    subject_id = request.GET.get('subject_id')
+    period = request.GET.get('period', 'all')  # all, month, quarter, year
+    selected_exam_ids = request.GET.getlist('exam_ids')  # Multiple exam selection
+    
+    # Get available exams for the filter dropdown
+    all_exams_queryset = ZipGradeExam.objects.all().order_by('-exam_date')
+    if school:
+        all_exams_queryset = all_exams_queryset.filter(school=school)
+    
+    # Apply period filter to available exams
+    now = timezone.now()
+    if period == 'month':
+        all_exams_queryset = all_exams_queryset.filter(exam_date__gte=now - timedelta(days=30))
+    elif period == 'quarter':
+        all_exams_queryset = all_exams_queryset.filter(exam_date__gte=now - timedelta(days=90))
+    elif period == 'year':
+        all_exams_queryset = all_exams_queryset.filter(exam_date__gte=now - timedelta(days=365))
+    
+    all_exams = list(all_exams_queryset)
+    
+    # If specific exams selected, use them; otherwise use all available
+    if selected_exam_ids:
+        exam_ids = [int(eid) for eid in selected_exam_ids if eid.isdigit()]
+        # Validate that selected exams exist in filtered set
+        valid_exam_ids = set(e.id for e in all_exams)
+        exam_ids = [eid for eid in exam_ids if eid in valid_exam_ids]
+    else:
+        exam_ids = [e.id for e in all_exams]
+    
+    # Get available subjects
+    subjects = Subject.objects.filter(
+        exam_splits__exam__in=exam_ids
+    ).distinct() if exam_ids else Subject.objects.none()
+    
+    # Calculate rankings
+    rankings = []
+    if exam_ids:
+        if ranking_type == 'absolute':
+            rankings = RankingCalculator.calculate_absolute_top(
+                exam_ids, entity_type=entity_type,
+                subject_id=int(subject_id) if subject_id else None,
+                limit=50
+            )
+        elif ranking_type == 'progress':
+            rankings = RankingCalculator.calculate_progress_top(
+                exam_ids, entity_type=entity_type, limit=50
+            )
+        elif ranking_type == 'consistency':
+            rankings = RankingCalculator.calculate_consistency_top(
+                exam_ids, limit=50
+            )
+        
+        # Apply tie-breaking for absolute rankings
+        if ranking_type == 'absolute':
+            rankings = RankingCalculator.handle_ties(rankings)
+    
+    # Get award eligibility (Gold/Silver/Bronze)
+    awards = {}
+    if exam_ids and ranking_type == 'absolute':
+        awards = RankingCalculator.get_award_eligibility(exam_ids, entity_type)
+    
+    # For AJAX requests, return JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'rankings': rankings,
+            'awards': awards,
+            'exam_count': len(exam_ids),
+        })
+    
+    context = {
+        'rankings': rankings,
+        'awards': awards,
+        'ranking_type': ranking_type,
+        'entity_type': entity_type,
+        'subject_id': subject_id,
+        'period': period,
+        'subjects': subjects,
+        'school': school,
+        'all_schools': all_schools,
+        'selected_school_id': selected_school_id,
+        'exam_count': len(exam_ids),
+        'all_exams': all_exams,
+        'selected_exam_ids': [str(eid) for eid in exam_ids] if selected_exam_ids else [],
+    }
+    
+    return render(request, 'analytics/rankings.html', context)

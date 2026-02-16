@@ -1,6 +1,6 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
-from .models import OnlineExam, ExamQuestion, QuestionOption
+from .models import OnlineExam, ExamQuestion, QuestionOption, MatchingPair
 
 
 class OnlineExamForm(forms.ModelForm):
@@ -46,7 +46,7 @@ class ExamQuestionForm(forms.ModelForm):
         fields = ['question_text', 'question_image', 'question_type', 'points', 'correct_answers', 'order']
         widgets = {
             'question_text': forms.Textarea(attrs={'class': 'form-input', 'rows': 3}),
-            'question_type': forms.Select(attrs={'class': 'form-select'}),
+            'question_type': forms.Select(attrs={'class': 'form-select', 'id': 'id_question_type'}),
             'points': forms.NumberInput(attrs={'class': 'form-input', 'min': 1}),
             'correct_answers': forms.Textarea(attrs={
                 'class': 'form-input', 
@@ -69,6 +69,19 @@ class QuestionOptionForm(forms.ModelForm):
         }
 
 
+class MatchingPairForm(forms.ModelForm):
+    """Form for creating/editing matching pairs."""
+    
+    class Meta:
+        model = MatchingPair
+        fields = ['left_item', 'right_item', 'order']
+        widgets = {
+            'left_item': forms.TextInput(attrs={'class': 'form-input', 'placeholder': _('Column A item')}),
+            'right_item': forms.TextInput(attrs={'class': 'form-input', 'placeholder': _('Column B item')}),
+            'order': forms.NumberInput(attrs={'class': 'form-input', 'min': 0}),
+        }
+
+
 # Formsets for inline editing
 QuestionOptionFormSet = forms.inlineformset_factory(
     ExamQuestion,
@@ -76,8 +89,18 @@ QuestionOptionFormSet = forms.inlineformset_factory(
     form=QuestionOptionForm,
     extra=4,
     can_delete=True,
-    min_num=2,
-    validate_min=True
+    min_num=0,
+    validate_min=False
+)
+
+MatchingPairFormSet = forms.inlineformset_factory(
+    ExamQuestion,
+    MatchingPair,
+    form=MatchingPairForm,
+    extra=3,
+    can_delete=True,
+    min_num=0,
+    validate_min=False
 )
 
 

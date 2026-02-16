@@ -34,8 +34,7 @@
             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
             <h3 style="margin: 0;">{% trans "Select Exams for Analysis" %}</h3>
             <div>
-                <button type="button" class="btn btn-outline btn-sm" onclick="selectAll()">{% trans "Select All"
-                    %}</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="selectAll()">{% trans "Select All" %}</button>
                 <button type="button" class="btn btn-outline btn-sm" onclick="clearAll()">{% trans "Clear" %}</button>
                 <button type="submit" class="btn btn-primary btn-sm" style="margin-left: 8px;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -63,8 +62,7 @@
                     {% for exam in exams %}
                     <tr>
                         <td>
-                            <input type="checkbox" name="exam_ids" value="{{ exam.pk }}" {% if exam.pk in
-                                selected_exam_ids %}checked{% endif %} class="exam-checkbox">
+                            <input type="checkbox" name="exam_ids" value="{{ exam.pk }}" {% if exam.pk in selected_exam_ids %}checked{% endif %} class="exam-checkbox">
                         </td>
                         <td>{{ exam.title }}</td>
                         <td>{{ exam.exam_date|date:"d.m.Y" }}</td>
@@ -238,8 +236,7 @@
                 <tr>
                     <td>
                         {% if forloop.counter <= 3 %} <span style="font-size: 1.2em;">
-                            {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% else %}🥉{% endif
-                            %}
+                            {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% else %}🥉{% endif %}
                             </span>
                             {% else %}
                             {{ forloop.counter }}

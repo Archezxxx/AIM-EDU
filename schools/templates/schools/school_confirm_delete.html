@@ -19,8 +19,7 @@
 
         <h3 style="margin-bottom: var(--spacing-sm);">{% trans "Confirm Deactivation" %}</h3>
         <p class="text-secondary">
-            {% blocktrans with name=school.name %}Are you sure you want to deactivate <strong>{{ name }}</strong>?{%
-            endblocktrans %}
+            {% blocktrans with name=school.name %}Are you sure you want to deactivate <strong>{{ name }}</strong>?{% endblocktrans %}
         </p>
         <p class="text-muted" style="font-size: 0.875rem;">
             {% trans "All data will be preserved for historical analytics." %}

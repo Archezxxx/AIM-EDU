@@ -52,8 +52,7 @@
             </svg>
             {% trans "Excel" %}
         </a>
-        <a href="{% url 'analytics:export_class_pdf' %}?grade={{ selected_class.grade }}&section={{ selected_class.section }}{% if school %}&school_id={{ school.pk }}{% endif %}"
-            class="btn btn-outline">
+        <a href="{% url 'analytics:export_class_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-outline">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -75,7 +74,7 @@
     <h3>{% trans "Select Class" %}</h3>
     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
         {% for cls in classes %}
-        <a href="?grade={{ cls.grade }}&section={{ cls.section }}{% if school %}&school_id={{ school.pk }}{% endif %}"
+        <a href="?grade={{ cls.grade }}&section={{ cls.section }}&source={{ source }}{% if school %}&school_id={{ school.pk }}{% endif %}"
             class="btn {% if cls.name == selected_class.name %}btn-primary{% else %}btn-outline{% endif %}">
             {{ cls.name }}
         </a>
@@ -134,51 +133,81 @@
     </div>
 </div>
 
-<!-- Charts & Tables Row -->
+<!-- Charts Row (Pie Charts) -->
+{% if subject_labels or perf_labels %}
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
-    <!-- Class Comparison Chart -->
+    {% if subject_labels %}
+    <!-- Subject Performance Pie Chart (ZipGrade) -->
     <div class="card">
-        <h3>{% trans "Class Comparison (Average Scores)" %}</h3>
-        <canvas id="comparisonChart" height="200"></canvas>
-    </div>
-
-    <!-- Top Students -->
-    <div class="card">
-        <h3>{% trans "Top Performers" %} - {{ selected_class.name }}</h3>
-        {% if stats.top_students %}
-        <div class="table-container">
-            <table class="table table-sm">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>{% trans "Student" %}</th>
-                        <th>{% trans "Avg Score" %}</th>
-                        <th>{% trans "Exams" %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for student in stats.top_students %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>{{ student.student__first_name }} {{ student.student__last_name }}</td>
-                        <td>
-                            <span
-                                class="badge {% if student.avg_score >= 60 %}badge-success{% else %}badge-danger{% endif %}">
-                                {{ student.avg_score|floatformat:1 }}%
-                            </span>
-                        </td>
-                        <td>{{ student.exams_taken }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <h3>{% trans "Best Performing Subjects" %}</h3>
+        <div style="max-width: 300px; margin: 0 auto;">
+            <canvas id="subjectPerformanceChart"></canvas>
         </div>
-        {% else %}
-        <p class="text-muted text-center" style="padding: 20px;">{% trans "No exam data available for this class." %}
-        </p>
-        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if perf_labels %}
+    <!-- Performance Distribution Pie Chart (ZipGrade) -->
+    <div class="card">
+        <h3>{% trans "Performance Distribution" %}</h3>
+        <div style="max-width: 300px; margin: 0 auto;">
+            <canvas id="perfDistChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Ranked Student List -->
+{% if ranked_students %}
+<div class="card" style="margin-bottom: var(--spacing-xl);">
+    <h3>{% trans "Student Rankings" %} — {{ selected_class.name }}</h3>
+    <div class="table-container">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>{% trans "Student" %}</th>
+                    <th style="text-align: center;">{% trans "Avg Score" %}</th>
+                    <th style="text-align: center;">{% trans "Exams" %}</th>
+                    <th style="width: 200px;">{% trans "Performance" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in ranked_students %}
+                <tr>
+                    <td
+                        style="font-weight: bold; color: {% if student.rank <= 3 %}var(--success){% else %}var(--text-primary){% endif %};">
+                        {% if student.rank == 1 %}🥇{% elif student.rank == 2 %}🥈{% elif student.rank == 3 %}🥉{% else %}{{ student.rank }}{% endif %}
+                    </td>
+                    <td>{{ student.name }}</td>
+                    <td style="text-align: center;">
+                        <span
+                            class="badge {% if student.avg_score >= 85 %}badge-success{% elif student.avg_score >= 70 %}badge-info{% elif student.avg_score >= 60 %}badge-warning{% else %}badge-danger{% endif %}">
+                            {{ student.avg_score }}%
+                        </span>
+                    </td>
+                    <td style="text-align: center;">{{ student.exam_count }}</td>
+                    <td>
+                        <div
+                            style="background: var(--bg-secondary); border-radius: 10px; height: 20px; overflow: hidden;">
+                            <div
+                                style="height: 100%; width: {{ student.avg_score }}%; background: {% if student.avg_score >= 85 %}var(--success){% elif student.avg_score >= 70 %}#3b82f6{% elif student.avg_score >= 60 %}var(--warning){% else %}var(--danger){% endif %}; border-radius: 10px; transition: width 0.5s ease;">
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
+{% elif stats %}
+<div class="card" style="margin-bottom: var(--spacing-xl);">
+    <h3>{% trans "Student Rankings" %} — {{ selected_class.name }}</h3>
+    <p class="text-muted text-center" style="padding: 20px;">{% trans "No exam data available for this class." %}</p>
+</div>
+{% endif %}
 
 {% endif %}
 
@@ -187,36 +216,89 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-{% if chart_labels and chart_data %}
+{% if subject_labels or perf_labels %}
 <script>
-    const ctx = document.getElementById('comparisonChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
+    {% if subject_labels %}
+    const subjCtx = document.getElementById('subjectPerformanceChart').getContext('2d');
+    new Chart(subjCtx, {
+        type: 'pie',
         data: {
-            labels: {{ chart_labels| safe }},
+            labels: {{ subject_labels| safe }},
         datasets: [{
-            label: '{% trans "Average Score (%)" %}',
-            data: {{ chart_data| safe }},
-        backgroundColor: 'rgba(79, 70, 229, 0.7)',
-        borderColor: 'rgba(79, 70, 229, 1)',
-        borderWidth: 1
+            data: {{ subject_data| safe }},
+        backgroundColor: [
+            '#4f46e5', '#10b981', '#f59e0b', '#ef4444',
+            '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6',
+            '#f97316', '#6366f1'
+        ],
+        borderWidth: 2,
+        borderColor: '#ffffff'
             }]
         },
         options: {
         responsive: true,
         plugins: {
             legend: {
-                display: false
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                max: 100
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    padding: 10
+                }
+            },
+            title: {
+                display: true,
+                text: '{% trans "Average Score by Subject" %}'
             }
         }
     }
     });
+    {% endif %}
+
+    {% if perf_labels %}
+    const perfCtx = document.getElementById('perfDistChart').getContext('2d');
+    new Chart(perfCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ perf_labels| safe }},
+        datasets: [{
+            data: {{ perf_data| safe }},
+        backgroundColor: [
+            '#10b981',
+            '#3b82f6',
+            '#f59e0b',
+            '#ef4444'
+        ],
+        borderWidth: 2,
+        borderColor: '#ffffff'
+            }]
+        },
+        options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    padding: 10
+                }
+            },
+            title: {
+                display: true,
+                text: '{% trans "Student Score Distribution" %}'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function (context) {
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const pct = total > 0 ? Math.round(context.raw / total * 100) : 0;
+                        return context.label + ': ' + context.raw + ' (' + pct + '%)';
+                    }
+                }
+            }
+        }
+    }
+    });
+    {% endif %}
 </script>
 {% endif %}
 {% endblock %}

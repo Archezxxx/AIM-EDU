@@ -13,10 +13,10 @@ import random
 from accounts.decorators import role_required
 from schools.models import School, Subject
 from .models import (
-    OnlineExam, ExamQuestion, QuestionOption,
+    OnlineExam, ExamQuestion, QuestionOption, MatchingPair,
     ExamAttempt, AttemptAnswer, ProctorEvent
 )
-from .forms import OnlineExamForm, ExamQuestionForm, QuestionOptionFormSet
+from .forms import OnlineExamForm, ExamQuestionForm, QuestionOptionFormSet, MatchingPairFormSet
 
 
 # ============================================
@@ -156,31 +156,47 @@ def add_question_view(request, exam_pk):
             question.order = exam.questions.count() + 1
             question.save()
             
-            # For fill_blanks questions, don't validate/save formset
             if question.question_type == 'fill_blanks':
                 messages.success(request, _('Question added successfully.'))
                 return redirect('exams:exam_questions', pk=exam.pk)
             
-            # For multiple choice, validate and save formset
+            if question.question_type == 'matching':
+                matching_formset = MatchingPairFormSet(request.POST, instance=question)
+                if matching_formset.is_valid():
+                    matching_formset.save()
+                    messages.success(request, _('Matching question added successfully.'))
+                    return redirect('exams:exam_questions', pk=exam.pk)
+                else:
+                    question.delete()
+                    form = ExamQuestionForm(request.POST, request.FILES)
+                    formset = QuestionOptionFormSet()
+                    matching_formset = MatchingPairFormSet(request.POST)
+                    return render(request, 'exams/question_form.html', {
+                        'exam': exam, 'form': form, 'formset': formset,
+                        'matching_formset': matching_formset, 'is_edit': False,
+                    })
+            
+            # Multiple choice
             formset = QuestionOptionFormSet(request.POST, instance=question)
             if formset.is_valid():
                 formset.save()
                 messages.success(request, _('Question added successfully.'))
                 return redirect('exams:exam_questions', pk=exam.pk)
             else:
-                # Formset invalid - delete the question and show errors
                 question.delete()
         else:
-            # Form invalid - create empty formset for re-display
             formset = QuestionOptionFormSet(request.POST)
     else:
         form = ExamQuestionForm()
         formset = QuestionOptionFormSet()
     
+    matching_formset = MatchingPairFormSet()
+    
     return render(request, 'exams/question_form.html', {
         'exam': exam,
         'form': form,
         'formset': formset,
+        'matching_formset': matching_formset,
         'is_edit': False,
     })
 
@@ -195,21 +211,35 @@ def edit_question_view(request, pk):
     if request.method == 'POST':
         form = ExamQuestionForm(request.POST, request.FILES, instance=question)
         formset = QuestionOptionFormSet(request.POST, instance=question)
+        matching_formset = MatchingPairFormSet(request.POST, instance=question)
         
-        if form.is_valid() and formset.is_valid():
-            form.save()
-            formset.save()
-            messages.success(request, _('Question updated successfully.'))
-            return redirect('exams:exam_questions', pk=exam.pk)
+        if form.is_valid():
+            saved_question = form.save()
+            
+            if saved_question.question_type == 'fill_blanks':
+                messages.success(request, _('Question updated successfully.'))
+                return redirect('exams:exam_questions', pk=exam.pk)
+            elif saved_question.question_type == 'matching':
+                if matching_formset.is_valid():
+                    matching_formset.save()
+                    messages.success(request, _('Question updated successfully.'))
+                    return redirect('exams:exam_questions', pk=exam.pk)
+            else:  # multiple_choice
+                if formset.is_valid():
+                    formset.save()
+                    messages.success(request, _('Question updated successfully.'))
+                    return redirect('exams:exam_questions', pk=exam.pk)
     else:
         form = ExamQuestionForm(instance=question)
         formset = QuestionOptionFormSet(instance=question)
+        matching_formset = MatchingPairFormSet(instance=question)
     
     return render(request, 'exams/question_form.html', {
         'exam': exam,
         'question': question,
         'form': form,
         'formset': formset,
+        'matching_formset': matching_formset,
         'is_edit': True,
     })
 
@@ -423,7 +453,7 @@ def take_exam_view(request, pk):
         return redirect('exams:exam_result', pk=attempt.pk)
     
     exam = attempt.exam
-    questions = list(exam.questions.prefetch_related('options').all())
+    questions = list(exam.questions.prefetch_related('options', 'matching_pairs').all())
     
     # Shuffle if needed
     if exam.shuffle_questions:
@@ -443,12 +473,20 @@ def take_exam_view(request, pk):
         if a.text_answer
     }
     
+    # Get existing matching answers
+    existing_matching_answers = {
+        a.question_id: a.matching_answers
+        for a in attempt.answers.all()
+        if a.matching_answers
+    }
+    
     return render(request, 'exams/take_exam.html', {
         'attempt': attempt,
         'exam': exam,
         'questions': questions,
         'existing_answers': existing_answers,
         'existing_text_answers': existing_text_answers,
+        'existing_matching_answers': existing_matching_answers,
         'time_remaining': attempt.time_remaining,
     })
 
@@ -479,6 +517,18 @@ def save_answer_view(request, attempt_pk):
                 defaults={
                     'text_answer': text_answer,
                     'selected_option': None
+                }
+            )
+        elif question.question_type == 'matching':
+            # Matching answer — JSON pairs
+            matching_data = data.get('matching_answers', {})
+            answer, created = AttemptAnswer.objects.update_or_create(
+                attempt=attempt,
+                question=question,
+                defaults={
+                    'matching_answers': matching_data,
+                    'selected_option': None,
+                    'text_answer': ''
                 }
             )
         else:

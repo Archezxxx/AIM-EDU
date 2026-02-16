@@ -70,8 +70,7 @@
                     <td>
                         {% if exam.is_available %}
                         <span class="badge badge-success">{% trans "Active" %}</span>
-                        {% elif exam.end_time < exam.start_time %} <span class="badge badge-secondary">{% trans "Ended"
-                            %}</span>
+                        {% elif exam.end_time < exam.start_time %} <span class="badge badge-secondary">{% trans "Ended" %}</span>
                             {% else %}
                             <span class="badge badge-warning">{% trans "Upcoming" %}</span>
                             {% endif %}

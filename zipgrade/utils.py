@@ -102,9 +102,25 @@ class ZipGradeParser:
                 self._map_columns()
                 self._find_answer_columns()
                 
+                # Extract answer key from PriKey columns (ZipGrade format)
+                answer_key = {}
+                if hasattr(self, 'prikey_columns') and self.prikey_columns and rows_data:
+                    # PriKey values are same for all rows, so just use first row
+                    first_row = rows_data[0]
+                    for i, col in enumerate(self.prikey_columns, start=1):
+                        answer = str(first_row.get(col, '')).strip().upper()
+                        if answer:
+                            answer_key[str(i)] = answer
+                
                 # Parse each row
                 for row_num, row in enumerate(rows_data, start=2):
                     try:
+                        # Skip Answer Key row if present (legacy format)
+                        if self._is_answer_key_row(row):
+                            if not answer_key:  # Only extract if not already got from PriKey
+                                answer_key = self._extract_answer_key(row)
+                            continue
+                        
                         result = self._parse_row(row)
                         if result:
                             results.append(result)
@@ -114,6 +130,7 @@ class ZipGradeParser:
                 
                 # Check for max points to fix possible over-detection of columns
                 # If we detected way more columns than max points, trust max points
+                derived_total_questions = len(self.answer_columns)  # Initialize with current count
                 max_values = [r['max_points'] for r in results if r['max_points'] > 0]
                 if max_values:
                     from collections import Counter
@@ -127,6 +144,8 @@ class ZipGradeParser:
                             derived_total_questions = likely_max_points
                             # Truncate answer columns to match likely question count
                             self.answer_columns = self.answer_columns[:likely_max_points]
+                            # Also truncate answer key
+                            answer_key = {k: v for k, v in answer_key.items() if int(k) <= likely_max_points}
 
                 return {
                     'total_questions': derived_total_questions if derived_total_questions > 0 else len(self.answer_columns),
@@ -134,6 +153,7 @@ class ZipGradeParser:
                     'results': results,
                     'errors': errors,
                     'answer_columns': self.answer_columns,
+                    'answer_key': answer_key,
                 }
             
             # CSV parsing (original logic)
@@ -258,68 +278,114 @@ class ZipGradeParser:
     
     
     def _find_answer_columns(self):
-        """Find columns that contain answer data."""
+        """Find columns that contain answer data.
         
-        # Broad detection strategy:
-        # 1. Identify all headers that are already mapped to student info
-        mapped_headers = set(self.column_map.values())
+        ZipGrade format uses:
+        - Stu1, Stu2, ... for student answers
+        - PriKey1, PriKey2, ... for correct answers (Answer Key)
+        """
+        import re
         
-        # 2. Iterate through all headers
-        candidates = []
+        # First, check for ZipGrade format (StuN and PriKeyN columns)
+        stu_columns = []
+        prikey_columns = []
+        
         for header in self.headers:
-            # Skip mapped columns (Name, ID, Score, etc.)
+            if not header:
+                continue
+            header_str = str(header).strip()
+            
+            # Match Stu1, Stu2, ... (student answers)
+            if re.match(r'^Stu\d+$', header_str):
+                stu_columns.append(header_str)
+            
+            # Match PriKey1, PriKey2, ... (correct answers / answer key)
+            elif re.match(r'^PriKey\d+$', header_str):
+                prikey_columns.append(header_str)
+        
+        # Sort by number
+        def get_num(col):
+            match = re.search(r'(\d+)$', col)
+            return int(match.group(1)) if match else 999999
+        
+        stu_columns.sort(key=get_num)
+        prikey_columns.sort(key=get_num)
+        
+        # If we found ZipGrade format, use it
+        if stu_columns:
+            self.answer_columns = stu_columns
+            self.prikey_columns = prikey_columns
+            return
+        
+        # Fallback to old detection for other formats
+        self.prikey_columns = []
+        mapped_headers = set(self.column_map.values())
+        candidates = []
+        
+        for header in self.headers:
             if header in mapped_headers:
                 continue
-                
-            header_stripped = header.strip()
+            header_stripped = str(header).strip()
             upper_header = header_stripped.upper()
             
-            # Explicitly checking for known "non-question" columns that might get through
-            # (In case they weren't mapped for some reason)
             if upper_header in ['DATE', 'TIME', 'SCHOOL', 'CLASS', 'SECTION', 'TEACHER', 'SUBJECT', 'EXAM']:
                 continue
             
-            # Pattern matching priorities:
-            
-            # Priority 1: Starts with 'Q' followed by digit (Q1, Q 1, Q-1)
-            import re
+            # Q1, Q2, etc.
             if re.match(r'^Q\s*[-_]?\s*\d+', upper_header):
                 candidates.append(header)
                 continue
-                
-            # Priority 2: Starts with "Question" or "Key" or "Vopros"
-            if re.match(r'^(QUESTION|KEY|VOPROS|ВОПРОС).*?\d+', upper_header):
-                candidates.append(header)
-                continue
-
-            # Priority 3: It is JUST a digit (1, 2, 3)
+            
+            # Just a digit
             if header_stripped.isdigit():
                 candidates.append(header)
                 continue
-                
-            # Priority 4: Ends with a digit (and isn't huge, likely a q number)
-            # Use regex to find the last number
-            match = re.search(r'(\d+)$', header_stripped)
-            if match:
-                # If we found a number safely at the end, and it wasn't a mapped column, assumes it's a question
+            
+            # Ends with digit
+            if re.search(r'(\d+)$', header_stripped):
                 candidates.append(header)
                 continue
-                
-        # Remove duplicates while preserving order? No, set/list might mess up.
-        # Candidates list should be unique by definition of loop.
         
+        candidates.sort(key=get_num)
         self.answer_columns = candidates
-
-        # Sort by extracted question number
-        def get_q_number(col):
-            col = col.strip()
-            import re
-            match = re.search(r'(\d+)$', col)
-            if match:
-                 return int(match.group(1))
-            return 999999 # Put at end if no number found (unlikely given filters)
+    
+    def _is_answer_key_row(self, row: Dict[str, str]) -> bool:
+        """Check if this row contains the Answer Key.
         
-        self.answer_columns.sort(key=get_q_number)
+        ZipGrade exports have a row where the name/ID contains 'KEY' or 'ANSWER'.
+        This row contains the correct answers for each question.
+        """
+        # Check student ID field
+        if 'student_id' in self.column_map:
+            student_id = str(row.get(self.column_map['student_id'], '')).strip().upper()
+            if 'KEY' in student_id or 'ANSWER' in student_id or 'ОТВЕТ' in student_id:
+                return True
+        
+        # Check name fields
+        if 'first_name' in self.column_map:
+            first_name = str(row.get(self.column_map['first_name'], '')).strip().upper()
+            if 'KEY' in first_name or 'ANSWER' in first_name or 'ОТВЕТ' in first_name:
+                return True
+        
+        if 'last_name' in self.column_map:
+            last_name = str(row.get(self.column_map['last_name'], '')).strip().upper()
+            if 'KEY' in last_name or 'ANSWER' in last_name or 'КЛЮЧ' in last_name:
+                return True
+        
+        return False
+    
+    def _extract_answer_key(self, row: Dict[str, str]) -> Dict[str, str]:
+        """Extract answer key from the KEY row.
+        
+        Returns:
+            Dictionary mapping question number to correct answer: {"1": "A", "2": "B", ...}
+        """
+        answer_key = {}
+        for i, col in enumerate(self.answer_columns, start=1):
+            answer = str(row.get(col, '')).strip().upper()
+            if answer:  # Only include non-empty answers
+                answer_key[str(i)] = answer
+        return answer_key
     
     def _parse_row(self, row: Dict[str, str]) -> Optional[Dict[str, Any]]:
         """Parse a single row of data.

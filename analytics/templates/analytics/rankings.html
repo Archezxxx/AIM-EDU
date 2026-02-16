@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Hall of Fame" %} - AIMS Analytics{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="topbar-title">🏆 {% trans "Hall of Fame" %}</h1>
+        {% if all_schools %}
+        <div style="margin-left: 20px;">
+            <select onchange="window.location.href='?school_id='+this.value+'&type={{ ranking_type }}&entity={{ entity_type }}&period={{ period }}'">
+                <option value="">{% trans "All Schools" %}</option>
+                {% for s in all_schools %}
+                <option value="{{ s.pk }}" {% if selected_school_id == s.pk|stringformat:"i" %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+    </div>
+    <div class="topbar-actions">
+        <span class="text-muted" style="margin-right: 12px;">{{ exam_count }} {% trans "exams analyzed" %}</span>
+    </div>
+</div>
+
+{% include 'partials/messages.html' %}
+
+<div class="card" style="margin-bottom: var(--spacing-lg); padding: var(--spacing-sm);">
+    <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap; align-items: center;">
+        <div style="display: flex; gap: 4px; border-right: 1px solid var(--border-color); padding-right: var(--spacing-md); margin-right: var(--spacing-md);">
+            <a href="?type=absolute&entity={{ entity_type }}&period={{ period }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}" class="btn btn-sm {% if ranking_type == 'absolute' %}btn-primary{% else %}btn-outline{% endif %}">🎯 {% trans "Absolute Top" %}</a>
+            <a href="?type=progress&entity={{ entity_type }}&period={{ period }}{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}" class="btn btn-sm {% if ranking_type == 'progress' %}btn-primary{% else %}btn-outline{% endif %}">📈 {% trans "Progress Top" %}</a>
+            <a href="?type=consistency&entity={{ entity_type }}&period={{ period }}{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}" class="btn btn-sm {% if ranking_type == 'consistency' %}btn-primary{% else %}btn-outline{% endif %}">⭐ {% trans "Consistency Top" %}</a>
+        </div>
+        <div style="display: flex; gap: 4px; border-right: 1px solid var(--border-color); padding-right: var(--spacing-md); margin-right: var(--spacing-md);">
+            <a href="?type={{ ranking_type }}&entity=student&period={{ period }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}" class="btn btn-sm {% if entity_type == 'student' %}btn-secondary{% else %}btn-outline{% endif %}">👤 {% trans "Students" %}</a>
+            <a href="?type={{ ranking_type }}&entity=class&period={{ period }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}" class="btn btn-sm {% if entity_type == 'class' %}btn-secondary{% else %}btn-outline{% endif %}">📚 {% trans "Classes" %}</a>
+            {% if not school %}
+            <a href="?type={{ ranking_type }}&entity=school&period={{ period }}{% if subject_id %}&subject_id={{ subject_id }}{% endif %}" class="btn btn-sm {% if entity_type == 'school' %}btn-secondary{% else %}btn-outline{% endif %}">🏫 {% trans "Schools" %}</a>
+            {% endif %}
+        </div>
+        <div style="display: flex; gap: 4px;">
+            <a href="?type={{ ranking_type }}&entity={{ entity_type }}&period=all{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}" class="btn btn-sm {% if period == 'all' %}btn-outline active{% else %}btn-outline{% endif %}">{% trans "All Time" %}</a>
+            <a href="?type={{ ranking_type }}&entity={{ entity_type }}&period=year{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}" class="btn btn-sm {% if period == 'year' %}btn-outline active{% else %}btn-outline{% endif %}">{% trans "Year" %}</a>
+            <a href="?type={{ ranking_type }}&entity={{ entity_type }}&period=quarter{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}" class="btn btn-sm {% if period == 'quarter' %}btn-outline active{% else %}btn-outline{% endif %}">{% trans "Quarter" %}</a>
+            <a href="?type={{ ranking_type }}&entity={{ entity_type }}&period=month{% if subject_id %}&subject_id={{ subject_id }}{% endif %}{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}" class="btn btn-sm {% if period == 'month' %}btn-outline active{% else %}btn-outline{% endif %}">{% trans "Month" %}</a>
+        </div>
+        {% if subjects and ranking_type == 'absolute' %}
+        <div style="margin-left: auto;">
+            <select onchange="window.location.href='?type={{ ranking_type }}&entity={{ entity_type }}&period={{ period }}&subject_id='+this.value+'{% if selected_school_id %}&school_id={{ selected_school_id }}{% endif %}'" class="form-select" style="min-width: 150px;">
+                <option value="">{% trans "All Subjects" %}</option>
+                {% for subject in subjects %}
+                <option value="{{ subject.pk }}" {% if subject_id == subject.pk|stringformat:"i" %}selected{% endif %}>{{ subject.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if awards.gold and entity_type == 'student' and ranking_type == 'absolute' %}
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+    <div class="card" style="background: linear-gradient(135deg, #ffd700 0%, #ffecb3 100%); border: none;">
+        <h4 style="color: #8b6914; margin-bottom: var(--spacing-sm);">🥇 {% trans "Gold" %} ({% trans "Top 5%" %})</h4>
+        <div style="font-size: 2rem; font-weight: 700; color: #8b6914;">{{ awards.gold|length }}</div>
+        <div style="font-size: 0.875rem; color: #a67c00;">{% trans "students eligible" %}</div>
+    </div>
+    <div class="card" style="background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%); border: none;">
+        <h4 style="color: #5a5a5a; margin-bottom: var(--spacing-sm);">🥈 {% trans "Silver" %} ({% trans "Top 10%" %})</h4>
+        <div style="font-size: 2rem; font-weight: 700; color: #5a5a5a;">{{ awards.silver|length }}</div>
+        <div style="font-size: 0.875rem; color: #6a6a6a;">{% trans "students eligible" %}</div>
+    </div>
+    <div class="card" style="background: linear-gradient(135deg, #cd7f32 0%, #e8c9a0 100%); border: none;">
+        <h4 style="color: #6b4423; margin-bottom: var(--spacing-sm);">🥉 {% trans "Bronze" %} ({% trans "Top 20%" %})</h4>
+        <div style="font-size: 2rem; font-weight: 700; color: #6b4423;">{{ awards.bronze|length }}</div>
+        <div style="font-size: 0.875rem; color: #8b5a2b;">{% trans "students eligible" %}</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <h3 style="margin-bottom: var(--spacing-lg);">
+        {% if ranking_type == 'absolute' %}🎯 {% trans "Top Performers" %}{% elif ranking_type == 'progress' %}📈 {% trans "Most Improved" %}{% else %}⭐ {% trans "Most Consistent" %}{% endif %}
+        {% if school %}<span class="text-muted" style="font-size: 0.875rem;"> - {{ school.name }}</span>{% endif %}
+    </h3>
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">#</th>
+                    <th>{% trans "Name" %}</th>
+                    {% if entity_type == 'student' %}<th>{% trans "Class" %}</th>{% endif %}
+                    {% if not school and entity_type != 'school' %}<th>{% trans "School" %}</th>{% endif %}
+                    {% if ranking_type == 'absolute' %}<th>{% trans "Avg Score" %}</th><th>{% trans "Best" %}</th><th>{% trans "Exams" %}</th>{% elif ranking_type == 'progress' %}<th>{% trans "Before" %}</th><th>{% trans "After" %}</th><th>{% trans "Improvement" %}</th>{% else %}<th>{% trans "Streak" %}</th><th>{% trans "Avg in Streak" %}</th><th>{% trans "Total Exams" %}</th>{% endif %}
+                    <th style="width: 50px;">{% trans "Trend" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rankings %}
+                <tr {% if r.position <= 3 %}style="background: {% if r.position == 1 %}rgba(255, 215, 0, 0.1){% elif r.position == 2 %}rgba(192, 192, 192, 0.1){% else %}rgba(205, 127, 50, 0.1){% endif %};"{% endif %}>
+                    <td>{% if r.position == 1 %}<span style="font-size: 1.5rem;">🥇</span>{% elif r.position == 2 %}<span style="font-size: 1.5rem;">🥈</span>{% elif r.position == 3 %}<span style="font-size: 1.5rem;">🥉</span>{% else %}<span style="font-weight: 600; color: var(--text-muted);">{{ r.position }}</span>{% endif %}</td>
+                    <td><strong>{{ r.name }}</strong></td>
+                    {% if entity_type == 'student' %}<td><span class="badge badge-outline">{{ r.class_name }}</span></td>{% endif %}
+                    {% if not school and entity_type != 'school' %}<td class="text-muted">{{ r.school }}</td>{% endif %}
+                    {% if ranking_type == 'absolute' %}<td><strong style="color: {% if r.avg_score >= 80 %}var(--success){% elif r.avg_score >= 60 %}var(--warning){% else %}var(--danger){% endif %};">{{ r.avg_score }}%</strong></td><td>{{ r.best_score }}%</td><td>{{ r.exam_count }}</td>{% elif ranking_type == 'progress' %}<td>{{ r.earlier_score }}%</td><td>{{ r.later_score }}%</td><td><strong style="color: var(--success);">+{{ r.improvement }}%</strong></td>{% else %}<td><strong style="color: var(--primary);">{{ r.current_streak }} {% trans "exams" %}</strong></td><td>{{ r.avg_streak_score }}%</td><td>{{ r.exams_taken }}</td>{% endif %}
+                    <td style="text-align: center;">{% if r.trend == 'up' %}<span style="color: var(--success); font-size: 1.2rem;">↑</span>{% elif r.trend == 'down' %}<span style="color: var(--danger); font-size: 1.2rem;">↓</span>{% else %}<span style="color: var(--text-muted);">—</span>{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: var(--spacing-xl);">{% if exam_count == 0 %}{% trans "No exams found for the selected period." %}{% else %}{% trans "No rankings available. Try selecting different filters." %}{% endif %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

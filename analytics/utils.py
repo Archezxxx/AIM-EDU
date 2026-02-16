@@ -318,10 +318,10 @@ class AnalyticsHelper:
                         'section': result.student.section,
                         'name': key,
                         'scores': [],
-                        'student_count': 0
+                        'student_ids': set()
                     }
                 class_stats[key]['scores'].append(float(result.percentage))
-                class_stats[key]['student_count'] += 1
+                class_stats[key]['student_ids'].add(result.student_id)
         
         # Calculate averages
         breakdown = []
@@ -334,7 +334,7 @@ class AnalyticsHelper:
                 'name': data['name'],
                 'grade': data['grade'],
                 'section': data['section'],
-                'student_count': data['student_count'],
+                'student_count': len(data['student_ids']),
                 'avg_score': round(avg_score, 1),
                 'pass_rate': round(pass_rate, 1),
                 'max_score': round(max(data['scores']) if data['scores'] else 0, 1),
@@ -511,9 +511,257 @@ class AnalyticsHelper:
             
         return labels, data
 
+    @staticmethod
+    def get_performance_distribution(exam_ids):
+        """Get student performance distribution for PieChart.
+        
+        Categories:
+        - Excellent: 85-100%
+        - Good: 70-84%
+        - Satisfactory: 60-69%
+        - Unsatisfactory: 0-59%
+        """
+        from zipgrade.models import ExamResult
+        from django.utils.translation import gettext as _
+        
+        if not exam_ids:
+            return [], []
+        
+        results = ExamResult.objects.filter(exam_id__in=exam_ids)
+        
+        if not results.exists():
+            return [], []
+        
+        # Count results in each category
+        excellent = 0  # 85-100%
+        good = 0       # 70-84%
+        satisfactory = 0  # 60-69%
+        unsatisfactory = 0  # 0-59%
+        
+        for result in results:
+            percentage = float(result.percentage)
+            if percentage >= 85:
+                excellent += 1
+            elif percentage >= 70:
+                good += 1
+            elif percentage >= 60:
+                satisfactory += 1
+            else:
+                unsatisfactory += 1
+        
+        labels = [
+            _('Excellent (85-100%)'),
+            _('Good (70-84%)'),
+            _('Satisfactory (60-69%)'),
+            _('Unsatisfactory (0-59%)')
+        ]
+        data = [excellent, good, satisfactory, unsatisfactory]
+        
+        return labels, data
+
+    @staticmethod
+    def get_class_performance_distribution(exam_ids, grade, section):
+        """Get performance distribution for a specific class in ZipGrade exams.
+        
+        Categories:
+        - Excellent: 85-100%
+        - Good: 70-84%
+        - Satisfactory: 60-69%
+        - Unsatisfactory: 0-59%
+        """
+        from zipgrade.models import ExamResult
+        from django.utils.translation import gettext as _
+        
+        if not exam_ids:
+            return [], []
+        
+        results = ExamResult.objects.filter(
+            exam_id__in=exam_ids,
+            student__grade=grade,
+            student__section=section
+        )
+        
+        if not results.exists():
+            return [], []
+        
+        excellent = 0
+        good = 0
+        satisfactory = 0
+        unsatisfactory = 0
+        
+        for result in results:
+            percentage = float(result.percentage)
+            if percentage >= 85:
+                excellent += 1
+            elif percentage >= 70:
+                good += 1
+            elif percentage >= 60:
+                satisfactory += 1
+            else:
+                unsatisfactory += 1
+        
+        labels = [
+            _('Excellent (85-100%)'),
+            _('Good (70-84%)'),
+            _('Satisfactory (60-69%)'),
+            _('Unsatisfactory (0-59%)')
+        ]
+        data = [excellent, good, satisfactory, unsatisfactory]
+        
+        return labels, data
+
+    @staticmethod
+    def get_class_ranked_students(exam_ids, grade, section):
+        """Get all students in a class ranked by average ZipGrade score (highest first).
+        
+        Returns list of dicts: [{name, avg_score, exam_count, percentage}, ...]
+        """
+        from zipgrade.models import ExamResult
+        from django.db.models import Avg, Count
+        
+        if not exam_ids or not grade or not section:
+            return []
+        
+        # Aggregate by student: average percentage and count of exams
+        student_stats = (
+            ExamResult.objects.filter(
+                exam_id__in=exam_ids,
+                student__grade=grade,
+                student__section=section,
+                student__isnull=False
+            )
+            .values('student__id', 'student__name', 'student__surname')
+            .annotate(
+                avg_score=Avg('percentage'),
+                exam_count=Count('id')
+            )
+            .order_by('-avg_score')
+        )
+        
+        ranked = []
+        for i, s in enumerate(student_stats, 1):
+            ranked.append({
+                'rank': i,
+                'name': f"{s['student__surname']} {s['student__name']}".strip(),
+                'avg_score': round(float(s['avg_score']), 1),
+                'exam_count': s['exam_count'],
+            })
+        
+        return ranked
+
+    @staticmethod
+    def get_class_subject_breakdown(exam_ids, grade, section):
+        """Get subject breakdown for a specific class in selected ZipGrade exams.
+        
+        Returns list of subjects sorted by average score (best performing first).
+        Used for pie chart showing which subjects the class excels at.
+        """
+        from zipgrade.models import SubjectResult, ExamResult
+        
+        if not exam_ids or not grade or not section:
+            return [], []
+        
+        # Get all exam results for students in this class
+        class_results = ExamResult.objects.filter(
+            exam_id__in=exam_ids,
+            student__grade=grade,
+            student__section=section
+        ).values_list('id', flat=True)
+        
+        if not class_results:
+            return [], []
+        
+        # Get subject results for these exam results
+        subject_results = SubjectResult.objects.filter(
+            result_id__in=class_results
+        ).select_related('subject_split__subject')
+        
+        if not subject_results.exists():
+            return [], []
+        
+        # Group by subject and calculate averages
+        subject_stats = {}
+        for sr in subject_results:
+            subject_name = sr.subject_split.subject.name
+            if subject_name not in subject_stats:
+                subject_stats[subject_name] = {'scores': []}
+            subject_stats[subject_name]['scores'].append(float(sr.percentage))
+        
+        # Calculate averages and build result
+        breakdown = []
+        for name, data in subject_stats.items():
+            avg = sum(data['scores']) / len(data['scores']) if data['scores'] else 0
+            breakdown.append({
+                'name': name,
+                'avg_score': round(avg, 1)
+            })
+        
+        # Sort by average score descending (best subjects first)
+        breakdown.sort(key=lambda x: x['avg_score'], reverse=True)
+        
+        # Return labels and data for pie chart
+        labels = [s['name'] for s in breakdown]
+        data = [s['avg_score'] for s in breakdown]
+        
+        return labels, data
+
 
 class ReportGenerator:
+
+
     """Helper for generating analytic reports."""
+    
+    # Unicode font name constant — used in table styles and paragraphs
+    UNICODE_FONT = 'LiberationSans'
+    UNICODE_FONT_BOLD = 'LiberationSans-Bold'
+    
+    @staticmethod
+    def _register_unicode_fonts():
+        """Register Unicode-capable fonts for PDF generation.
+        
+        Returns (font_name, font_name_bold) tuple.
+        Falls back to Helvetica if LiberationSans not available.
+        """
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        import os
+        
+        font_dir = '/usr/share/fonts/liberation'
+        regular = os.path.join(font_dir, 'LiberationSans-Regular.ttf')
+        bold = os.path.join(font_dir, 'LiberationSans-Bold.ttf')
+        italic = os.path.join(font_dir, 'LiberationSans-Italic.ttf')
+        
+        if os.path.exists(regular):
+            try:
+                pdfmetrics.registerFont(TTFont('LiberationSans', regular))
+                if os.path.exists(bold):
+                    pdfmetrics.registerFont(TTFont('LiberationSans-Bold', bold))
+                if os.path.exists(italic):
+                    pdfmetrics.registerFont(TTFont('LiberationSans-Italic', italic))
+                return 'LiberationSans', 'LiberationSans-Bold'
+            except Exception:
+                pass
+        
+        return 'Helvetica', 'Helvetica-Bold'
+    
+    @staticmethod
+    def _get_unicode_styles():
+        """Get stylesheet with Unicode font applied to all styles."""
+        from reportlab.lib.styles import getSampleStyleSheet
+        
+        font_name, font_bold = ReportGenerator._register_unicode_fonts()
+        styles = getSampleStyleSheet()
+        
+        # Override default fonts with Unicode-capable font
+        for style_name in styles.byName:
+            style = styles[style_name]
+            if hasattr(style, 'fontName'):
+                if 'Bold' in style.fontName or 'bold' in style.fontName.lower():
+                    style.fontName = font_bold
+                else:
+                    style.fontName = font_name
+        
+        return styles, font_name, font_bold
     
     @staticmethod
     def generate_excel_report(school):
@@ -607,79 +855,157 @@ class ReportGenerator:
         return response
 
     @staticmethod
-    def generate_pdf_report(school):
-        """Generate PDF report for school analytics."""
+    def generate_pdf_report(report_data):
+        """Generate PDF report that matches the on-screen analytics data.
+        
+        report_data dict contains:
+            - source: 'exams' or 'zipgrade'
+            - school_name: str
+            - stats: dict with count, avg_score, pass_rate, max_score
+            For exams: growth_labels, growth_values
+            For zipgrade: performance_distribution, class_comparison, recent_exams, subject_name
+        """
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import letter
+        from reportlab.lib.units import inch
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet
         from django.http import HttpResponse
         import io
         
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
         elements = []
-        styles = getSampleStyleSheet()
+        styles, font_name, font_bold = ReportGenerator._get_unicode_styles()
+        
+        source = report_data.get('source', 'exams')
+        school_name = report_data.get('school_name', 'Unknown')
+        stats = report_data.get('stats', {})
+        
+        # Common table style
+        header_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), font_bold),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ])
         
         # Title
-        elements.append(Paragraph(f"Analytics Report: {school.name}", styles['Title']))
-        elements.append(Paragraph(f"Date: {timezone.now().strftime('%Y-%m-%d')}", styles['Normal']))
+        source_label = 'ZipGrade' if source == 'zipgrade' else 'Exams'
+        subject_name = report_data.get('subject_name', '')
+        title_text = f"Analytics Report: {school_name} ({source_label})"
+        if subject_name:
+            title_text += f" — {subject_name}"
+        
+        elements.append(Paragraph(title_text, styles['Title']))
+        elements.append(Paragraph(f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
         elements.append(Spacer(1, 20))
         
-        # Stats Table
-        stats = AnalyticsHelper.get_school_stats(school)['online_exams']
-        data = [
-            ["Metric", "Value"],
-            ["Total Exams Taken", str(stats['count'])],
-            ["Average Score", f"{stats['avg_score']}%"],
-            ["Pass Rate", f"{stats['pass_rate']}%"],
-            ["Best Score", f"{stats['max_score']}%"],
-        ]
+        # ── Overview Stats Table ──
+        elements.append(Paragraph("Overview", styles['Heading2']))
         
-        t = Table(data)
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
+        count_label = "Total Students" if source == 'zipgrade' else "Total Exams Taken"
+        stats_data = [
+            ["Metric", "Value"],
+            [count_label, str(stats.get('count', 0))],
+            ["Average Score", f"{stats.get('avg_score', 0)}%"],
+            ["Pass Rate", f"{stats.get('pass_rate', 0)}%"],
+            ["Best Score", f"{stats.get('max_score', 0)}%"],
+        ]
+        if stats.get('min_score') is not None and source == 'zipgrade':
+            stats_data.append(["Lowest Score", f"{stats.get('min_score', 0)}%"])
+        
+        t = Table(stats_data, colWidths=[3*inch, 2*inch])
+        t.setStyle(header_style)
         elements.append(t)
         elements.append(Spacer(1, 20))
         
-        # Growth Chart
-        from reportlab.graphics.shapes import Drawing
-        from reportlab.graphics.charts.linecharts import HorizontalLineChart
+        if source == 'zipgrade':
+            # ── Performance Distribution ──
+            perf_dist = report_data.get('performance_distribution', {})
+            if perf_dist:
+                elements.append(Paragraph("Performance Distribution", styles['Heading2']))
+                perf_data = [["Category", "Students"]]
+                for label, count in perf_dist.items():
+                    perf_data.append([str(label), str(count)])
+                
+                pt = Table(perf_data, colWidths=[3*inch, 2*inch])
+                pt.setStyle(header_style)
+                elements.append(pt)
+                elements.append(Spacer(1, 20))
+            
+            # ── Class Comparison ──
+            class_comp = report_data.get('class_comparison', [])
+            if class_comp:
+                elements.append(Paragraph("Class Comparison (Average Score)", styles['Heading2']))
+                class_data = [["Class", "Avg Score"]]
+                for c in class_comp:
+                    class_data.append([c.get('name', ''), f"{c.get('avg_score', 0)}%"])
+                
+                ct = Table(class_data, colWidths=[3*inch, 2*inch])
+                ct.setStyle(header_style)
+                elements.append(ct)
+                elements.append(Spacer(1, 20))
+            
+            # ── Recent Exams ──
+            recent = report_data.get('recent_exams', [])
+            if recent:
+                elements.append(Paragraph("Recent Exams", styles['Heading2']))
+                exam_data = [["Title", "Date"]]
+                for ex in recent:
+                    date_str = ''
+                    if ex.get('exam_date'):
+                        date_str = ex['exam_date'].strftime('%Y-%m-%d') if hasattr(ex['exam_date'], 'strftime') else str(ex['exam_date'])
+                    exam_data.append([str(ex.get('title', '')), date_str])
+                
+                et = Table(exam_data, colWidths=[4*inch, 1.5*inch])
+                et.setStyle(header_style)
+                elements.append(et)
+                elements.append(Spacer(1, 20))
         
-        elements.append(Paragraph("Exam Growth (Last 12 Weeks)", styles['Heading2']))
-        labels, values = AnalyticsHelper.get_growth_chart_data(school)
-        
-        if values:
-            d = Drawing(400, 200)
-            lc = HorizontalLineChart()
-            lc.x = 30
-            lc.y = 50
-            lc.height = 125
-            lc.width = 350
-            lc.data = [values]
-            lc.categoryAxis.categoryNames = labels
-            lc.categoryAxis.labels.boxAnchor = 'n'
-            lc.categoryAxis.labels.angle = 30
-            lc.categoryAxis.labels.dy = -10
-            lc.valueAxis.valueMin = 0
-            lc.valueAxis.valueMax = max(values) + (5 if max(values) > 0 else 5)
-            lc.valueAxis.valueStep = 5 if lc.valueAxis.valueMax > 15 else (1 if lc.valueAxis.valueMax < 5 else 2)
-            d.add(lc)
-            elements.append(d)
-            elements.append(Spacer(1, 20))
+        else:
+            # ── Exams: Growth Chart ──
+            from reportlab.graphics.shapes import Drawing
+            from reportlab.graphics.charts.linecharts import HorizontalLineChart
+            
+            labels = report_data.get('growth_labels', [])
+            values = report_data.get('growth_values', [])
+            
+            if values and any(v > 0 for v in values):
+                elements.append(Paragraph("Exam Growth (Last 12 Weeks)", styles['Heading2']))
+                d = Drawing(450, 200)
+                lc = HorizontalLineChart()
+                lc.x = 30
+                lc.y = 50
+                lc.height = 125
+                lc.width = 400
+                lc.data = [values]
+                lc.categoryAxis.categoryNames = labels
+                lc.categoryAxis.labels.boxAnchor = 'n'
+                lc.categoryAxis.labels.angle = 30
+                lc.categoryAxis.labels.dy = -10
+                lc.valueAxis.valueMin = 0
+                max_val = max(values) if values else 5
+                lc.valueAxis.valueMax = max_val + (5 if max_val > 0 else 5)
+                lc.valueAxis.valueStep = 5 if lc.valueAxis.valueMax > 15 else (1 if lc.valueAxis.valueMax < 5 else 2)
+                d.add(lc)
+                elements.append(d)
+                elements.append(Spacer(1, 20))
         
         doc.build(elements)
         buffer.seek(0)
         
+        # Use school name in filename
+        safe_name = school_name.replace(' ', '_').replace('/', '_')[:30]
         response = HttpResponse(buffer, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename=analytics_{school.pk}_{timezone.now().date()}.pdf'
+        response['Content-Disposition'] = f'attachment; filename=analytics_{safe_name}_{source}_{timezone.now().date()}.pdf'
         return response
 
     @staticmethod
@@ -756,105 +1082,131 @@ class ReportGenerator:
         return response
 
     @staticmethod
-    def generate_class_pdf_report(school, grade, section):
-        """Generate PDF report for class analytics."""
+    def generate_class_pdf_report(report_data):
+        """Generate PDF report for class analytics — matches on-screen data.
+        
+        report_data dict contains:
+            - source: 'exams' or 'zipgrade'
+            - school_name, class_name: str
+            - stats: dict with total_students, total_exams, avg_score, pass_rate, max_score, min_score
+            For zipgrade: performance_distribution, ranked_students
+            For exams: stats dict from get_class_stats (includes top_students)
+        """
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import letter
+        from reportlab.lib.units import inch
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet
         from django.http import HttpResponse
         import io
         
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
         elements = []
-        styles = getSampleStyleSheet()
+        styles, font_name, font_bold = ReportGenerator._get_unicode_styles()
+        
+        source = report_data.get('source', 'exams')
+        school_name = report_data.get('school_name', '')
+        class_name = report_data.get('class_name', '')
+        stats = report_data.get('stats', {})
+        
+        # Common table style
+        header_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), font_bold),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ])
         
         # Title
-        elements.append(Paragraph(f"Class Analytics Report: {grade}{section}", styles['Title']))
-        elements.append(Paragraph(f"School: {school.name}", styles['Normal']))
-        elements.append(Paragraph(f"Date: {timezone.now().strftime('%Y-%m-%d')}", styles['Normal']))
+        source_label = 'ZipGrade' if source == 'zipgrade' else 'Exams'
+        elements.append(Paragraph(f"Class Analytics: {class_name} ({source_label})", styles['Title']))
+        elements.append(Paragraph(f"School: {school_name}", styles['Normal']))
+        elements.append(Paragraph(f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
         elements.append(Spacer(1, 20))
         
-        # Stats
-        stats = AnalyticsHelper.get_class_stats(school, grade, section)
-        data = [
+        # ── Overview Stats ──
+        elements.append(Paragraph("Overview", styles['Heading2']))
+        stats_data = [
             ["Metric", "Value"],
-            ["Total Students", str(stats['total_students'])],
-            ["Total Exams Taken", str(stats['total_exams'])],
-            ["Average Score", f"{stats['avg_score']}%"],
-            ["Pass Rate", f"{stats['pass_rate']}%"],
-            ["Best Score", f"{stats['max_score']}%"],
-            ["Lowest Score", f"{stats['min_score']}%"],
+            ["Students in Class", str(stats.get('total_students', 0))],
+            ["Total Exams", str(stats.get('total_exams', 0))],
+            ["Average Score", f"{stats.get('avg_score', 0)}%"],
+            ["Pass Rate", f"{stats.get('pass_rate', 0)}%"],
+            ["Best Score", f"{stats.get('max_score', 0)}%"],
+            ["Lowest Score", f"{stats.get('min_score', 0)}%"],
         ]
         
-        t = Table(data)
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
+        t = Table(stats_data, colWidths=[3*inch, 2*inch])
+        t.setStyle(header_style)
         elements.append(t)
         elements.append(Spacer(1, 20))
         
-        # Top students
-        if stats['top_students']:
-            elements.append(Paragraph("Top Performers", styles['Heading2']))
-            top_data = [["#", "Student Name", "Avg Score", "Exams"]]
-            for i, student in enumerate(stats['top_students'], 1):
-                top_data.append([
-                    str(i),
-                    f"{student['student__first_name']} {student['student__last_name']}",
-                    f"{round(student['avg_score'], 1)}%",
-                    str(student['exams_taken'])
-                ])
-            t2 = Table(top_data)
-            t2.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ]))
-            elements.append(t2)
-            elements.append(Spacer(1, 20))
+        if source == 'zipgrade':
+            # ── Performance Distribution ──
+            perf_dist = report_data.get('performance_distribution', {})
+            if perf_dist:
+                elements.append(Paragraph("Performance Distribution", styles['Heading2']))
+                perf_data = [["Category", "Students"]]
+                for label, count in perf_dist.items():
+                    perf_data.append([str(label), str(count)])
+                pt = Table(perf_data, colWidths=[3*inch, 2*inch])
+                pt.setStyle(header_style)
+                elements.append(pt)
+                elements.append(Spacer(1, 20))
             
-            # Top Students Chart
-            from reportlab.graphics.shapes import Drawing
-            from reportlab.graphics.charts.barcharts import HorizontalBarChart
-            
-            elements.append(Paragraph("Top Performers Chart", styles['Heading2']))
-            
-            student_names = [f"{s['student__first_name']} {s['student__last_name'][:1]}." for s in stats['top_students']]
-            scores = [s['avg_score'] for s in stats['top_students']]
-            
-            if scores:
-                d = Drawing(400, 200)
-                bc = HorizontalBarChart()
-                bc.x = 100
-                bc.y = 50
-                bc.height = 125
-                bc.width = 300
-                bc.data = [scores]
-                bc.categoryAxis.categoryNames = student_names
-                bc.categoryAxis.labels.boxAnchor = 'e'
-                bc.categoryAxis.labels.dx = -5
-                bc.valueAxis.valueMin = 0
-                bc.valueAxis.valueMax = 100
-                bc.valueAxis.valueStep = 20
-                d.add(bc)
-                elements.append(d)
+            # ── Ranked Students ──
+            ranked = report_data.get('ranked_students', [])
+            if ranked:
+                elements.append(Paragraph("Student Rankings (Highest to Lowest)", styles['Heading2']))
+                rank_data = [["#", "Student Name", "Avg Score", "Exams"]]
+                for s in ranked:
+                    rank_data.append([
+                        str(s.get('rank', '')),
+                        s.get('name', ''),
+                        f"{s.get('avg_score', 0)}%",
+                        str(s.get('exam_count', 0))
+                    ])
+                rt = Table(rank_data, colWidths=[0.5*inch, 3*inch, 1*inch, 0.8*inch])
+                rt.setStyle(header_style)
+                # Highlight top 3
+                for i in range(1, min(4, len(rank_data))):
+                    rt.setStyle(TableStyle([
+                        ('BACKGROUND', (0, i), (-1, i), colors.HexColor('#d4edda')),
+                    ]))
+                elements.append(rt)
+                elements.append(Spacer(1, 20))
+        else:
+            # ── Exams: Top Students ──
+            top_students = stats.get('top_students', [])
+            if top_students:
+                elements.append(Paragraph("Top Performers", styles['Heading2']))
+                top_data = [["#", "Student Name", "Avg Score", "Exams"]]
+                for i, student in enumerate(top_students, 1):
+                    name = f"{student.get('student__name', '')} {student.get('student__surname', '')}".strip()
+                    top_data.append([
+                        str(i),
+                        name,
+                        f"{round(student.get('avg_score', 0), 1)}%",
+                        str(student.get('exams_taken', 0))
+                    ])
+                tt = Table(top_data, colWidths=[0.5*inch, 3*inch, 1*inch, 0.8*inch])
+                tt.setStyle(header_style)
+                elements.append(tt)
                 elements.append(Spacer(1, 20))
         
         doc.build(elements)
         buffer.seek(0)
         
         response = HttpResponse(buffer, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename=class_{grade}{section}_{timezone.now().date()}.pdf'
+        response['Content-Disposition'] = f'attachment; filename=class_{class_name}_{source}_{timezone.now().date()}.pdf'
         return response
 
     @staticmethod
@@ -946,7 +1298,6 @@ class ReportGenerator:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet
         from django.http import HttpResponse
         from django.db.models import Avg, Max, Min
         import io
@@ -954,7 +1305,7 @@ class ReportGenerator:
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter)
         elements = []
-        styles = getSampleStyleSheet()
+        styles, font_name, font_bold = ReportGenerator._get_unicode_styles()
         
         # Title
         elements.append(Paragraph(f"Student Analytics Report: {student.get_full_name()}", styles['Title']))
@@ -991,7 +1342,7 @@ class ReportGenerator:
                 ('BACKGROUND', (0, 0), (1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), font_bold),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
@@ -1039,7 +1390,7 @@ class ReportGenerator:
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), font_bold),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ]))
             elements.append(t2)

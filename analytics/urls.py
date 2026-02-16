@@ -23,6 +23,7 @@ urlpatterns = [
     path('item-analysis/<int:exam_id>/', views.item_analysis_view, name='item_analysis'),
     path('student/<int:student_id>/advanced/', views.student_advanced_analytics_view, name='student_advanced'),
     path('class-heatmap/', views.class_heatmap_view, name='class_heatmap'),
+    path('rankings/', views.rankings_view, name='rankings'),
     
     # API Endpoints
     path('api/radar/', views.api_radar_data, name='api_radar'),

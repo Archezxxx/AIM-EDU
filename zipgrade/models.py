@@ -68,6 +68,9 @@ class ZipGradeExam(models.Model):
     total_students = models.PositiveIntegerField(default=0, verbose_name=_('Total Students'))
     unknown_students = models.PositiveIntegerField(default=0, verbose_name=_('Unknown Students'))
     
+    # Answer key for calculating correct/incorrect (JSON: {"1": "A", "2": "B", ...})
+    answer_key = models.TextField(blank=True, verbose_name=_('Answer Key (JSON)'))
+    
     # Optional folder organization
     folder = models.ForeignKey(
         ExamFolder,
@@ -131,7 +134,7 @@ class SubjectSplit(models.Model):
         verbose_name = _('Subject Split')
         verbose_name_plural = _('Subject Splits')
         ordering = ['start_question']
-        unique_together = ['exam', 'subject']
+
     
     def __str__(self):
         return f"{self.subject.name}: Q{self.start_question}-Q{self.end_question}"

@@ -19,8 +19,7 @@
 
         <h3 style="margin-bottom: var(--spacing-sm);">{% trans "Confirm Deletion" %}</h3>
         <p class="text-secondary">
-            {% blocktrans with subject=split.subject.name %}Delete subject split for <strong>{{ subject }}</strong>?{%
-            endblocktrans %}
+            {% blocktrans with subject=split.subject.name %}Delete subject split for <strong>{{ subject }}</strong>?{% endblocktrans %}
         </p>
         <p class="text-muted" style="font-size: 0.875rem;">
             Q{{ split.start_question }} - Q{{ split.end_question }}

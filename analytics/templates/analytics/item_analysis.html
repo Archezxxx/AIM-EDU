@@ -52,8 +52,7 @@
                     <div style="height: 100%; width: {{ data.percentages|default_if_none:0 }}%; background: {% if data.misconception and data.misconception.answer == answer %}var(--warning){% else %}var(--primary){% endif %}; border-radius: 4px; transition: width 0.3s;"
                         data-width="{{ data.percentages|default:'0' }}"></div>
                 </div>
-                <span style="width: 60px; text-align: right;">{{ count }} ({% widthratio count data.total_responses 100
-                    %}%)</span>
+                <span style="width: 60px; text-align: right;">{{ count }} ({% widthratio count data.total_responses 100 %}%)</span>
             </div>
             {% endfor %}
         </div>
@@ -61,8 +60,7 @@
         {% if data.misconception %}
         <div class="alert alert-warning" style="margin-top: var(--spacing-md); padding: 10px;">
             <strong>{% trans "Common Misconception" %}:</strong>
-            {{ data.misconception.percentage }}% {% trans "of students chose" %} <strong>{{ data.misconception.answer
-                }}</strong>
+            {{ data.misconception.percentage }}% {% trans "of students chose" %} <strong>{{ data.misconception.answer }}</strong>
         </div>
         {% endif %}
     </div>

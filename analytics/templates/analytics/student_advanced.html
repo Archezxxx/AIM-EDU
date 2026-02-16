@@ -41,8 +41,7 @@
             <select name="exam_ids" multiple class="form-select" style="min-height: 100px;">
                 {% for exam in available_exams %}
                 <option value="{{ exam.pk }}" {% if exam.pk|stringformat:"s" in selected_exam_ids %}selected{% endif %}>
-                    {{ exam.title }} ({% if source == 'zipgrade' %}{{ exam.exam_date }}{% else %}{{
-                    exam.created_at|date:"Y-m-d" }}{% endif %})</option>
+                    {{ exam.title }} ({% if source == 'zipgrade' %}{{ exam.exam_date }}{% else %}{{ exam.created_at|date:"Y-m-d" }}{% endif %})</option>
                 {% endfor %}
             </select>
         </div>
@@ -181,7 +180,7 @@
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            label: ctx => ctx.dataset.label + ': ' + (ctx.raw !== null ? ctx.raw + '%' : 'N/A')
+                            label: ctx => ctx.dataset.label + ': ' + (ctx.raw ! ==  null ? ctx.raw + '%' : 'N/A')
                         }
                     }
                 }
